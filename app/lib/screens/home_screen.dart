@@ -1,4 +1,4 @@
-import 'dart:ui';
+﻿import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../components/brand_header.dart';
 import '../components/circular_country_flag.dart';
@@ -83,7 +83,7 @@ class HomeScreen extends StatelessWidget {
         return SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20.0),
           child: Column(
-            crossAxisAlignment: CrossAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               SizedBox(height: topPad),
 
@@ -367,7 +367,7 @@ class HomeScreen extends StatelessWidget {
           Column(
             children: [
               Row(
-                crossAxisAlignment: CrossAlignment.baseline,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
                 children: [
                   Text(
@@ -413,7 +413,7 @@ class HomeScreen extends StatelessWidget {
           Column(
             children: [
               Row(
-                crossAxisAlignment: CrossAlignment.baseline,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
                 children: [
                   Text(
@@ -493,7 +493,7 @@ class HomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(width: 12.0),
                 Column(
-                  crossAxisAlignment: CrossAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
@@ -570,7 +570,7 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(width: 13.0),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(

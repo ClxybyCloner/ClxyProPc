@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../theme/clxy_colors.dart';
 import 'circular_country_flag.dart';
 
@@ -78,7 +78,7 @@ class _RouteTunnelBoxState extends State<RouteTunnelBox>
                 children: [
                   Flexible(
                     child: Column(
-                      crossAxisAlignment: CrossAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
@@ -142,7 +142,7 @@ class _RouteTunnelBoxState extends State<RouteTunnelBox>
                   const SizedBox(width: 7.0),
                   Flexible(
                     child: Column(
-                      crossAxisAlignment: CrossAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(

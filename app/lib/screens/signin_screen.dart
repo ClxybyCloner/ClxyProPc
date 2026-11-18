@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../components/brand_header.dart';
@@ -237,7 +237,7 @@ class _SignInScreenState extends State<SignInScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 380),
             child: Column(
-              crossAxisAlignment: CrossAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const BrandHeader(logoSize: 42.0, labelSize: 22.0),
                 const SizedBox(height: 8.0),

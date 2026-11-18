@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/app_state.dart';
 import '../core/models.dart';
@@ -145,7 +145,7 @@ class _LogsScreenState extends State<LogsScreen> {
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 3.0),
                         child: Row(
-                          crossAxisAlignment: CrossAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               timeStr,

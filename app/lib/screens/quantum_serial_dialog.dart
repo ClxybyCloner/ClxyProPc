@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../core/prefs.dart';
 import '../core/quantum_serial.dart';
 import '../theme/clxy_colors.dart';
@@ -56,7 +56,7 @@ class _QuantumSerialDialogState extends State<QuantumSerialDialog> {
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const Icon(
               Icons.vpn_key_rounded,
@@ -71,7 +71,7 @@ class _QuantumSerialDialogState extends State<QuantumSerialDialog> {
                 fontWeight: FontWeight.bold,
                 color: ClxyColors.textPrimary,
               ),
-              textAlign: TextAlign.Center,
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8.0),
             const Text(

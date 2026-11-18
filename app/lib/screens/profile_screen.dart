@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/material.dart';
 import '../components/settings_rows.dart';
 import '../core/app_state.dart';
@@ -126,7 +126,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: const Text('About ClxyPro', style: TextStyle(color: ClxyColors.textPrimary, fontSize: 16)),
         content: const Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('ClxyPro for Windows (Portable)', style: TextStyle(color: ClxyColors.textPrimary, fontWeight: FontWeight.bold)),
             SizedBox(height: 4),
@@ -196,7 +196,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(width: 12.0),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       widget.state.isQuantum ? 'CLXY Quantum Engine' : 'CLXY Hyper Engine',

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../components/brand_header.dart';
 import '../components/circular_country_flag.dart';
 import '../components/signal_bars.dart';
@@ -252,7 +252,7 @@ class _ServersScreenState extends State<ServersScreen> {
             const SizedBox(width: 12.0),
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Row(
