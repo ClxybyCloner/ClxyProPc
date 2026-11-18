@@ -130,7 +130,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Text('ClxyPro for Windows (Portable)', style: TextStyle(color: ClxyColors.textPrimary, fontWeight: FontWeight.bold)),
             SizedBox(height: 4),
-            Text('Version 1.5.13', style: TextStyle(color: ClxyColors.cyanText, fontSize: 13)),
+            Text('Version 1.5.14', style: TextStyle(color: ClxyColors.cyanText, fontSize: 13)),
             SizedBox(height: 12),
             Text(
               'A completely self-contained, portable Windows VPN and Proxy client matching the Android ClxyPro stack. Dual-engine architecture featuring CLXY Hyper (Firefox MASQUE) and CLXY Quantum (Aether Direct).',
@@ -349,7 +349,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ProfileMenuCard(
           icon: Icons.system_update_rounded,
           title: 'Check for Updates',
-          subtitle: 'Current version: 1.5.13',
+          subtitle: 'Current version: 1.5.14',
           onClick: () async {
             await widget.state.checkUpdates(force: true);
             if (!mounted) return;
