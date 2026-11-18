@@ -156,12 +156,12 @@ func TestStatusNamesTheUpstreamProxyWhileOn(t *testing.T) {
 }
 
 // The switch decides, while the address stays set.
-func TestConfigureAPIRelayUsesTheUpstreamProxyOnlyWhileOn(t *testing.T) {
+func TestConfigureUpstreamProxyUsesTheUpstreamProxyOnlyWhileOn(t *testing.T) {
 	t.Cleanup(func() { _ = resolver.SetUpstreamProxy("", "", "") })
 	const address = "127.0.0.1:1080"
 	for _, on := range []bool{true, false, true} {
 		n := config.Network{UpstreamProxy: address, UpstreamProxyEnabled: on}
-		if err := configureAPIRelay(n); err != nil {
+		if err := configureUpstreamProxy(n); err != nil {
 			t.Fatal(err)
 		}
 		want := ""

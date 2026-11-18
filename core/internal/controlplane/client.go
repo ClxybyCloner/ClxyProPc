@@ -36,8 +36,7 @@ const (
 // HTTP_PROXY and HTTPS_PROXY: another program's proxy left in the
 // environment (v2rayN's 127.0.0.1:10808), not running, refused every
 // sign-in and Guardian request, which then read as Mozilla being blocked.
-// The user's own relay is network.api_relay. Its TLS starts with
-// Firefox's hello (firefoxTLS).
+// Its TLS starts with Firefox's hello (firefoxTLS).
 var defaultTransport = func() *http.Transport {
 	t := http.DefaultTransport.(*http.Transport).Clone()
 	t.Proxy = nil
@@ -48,9 +47,8 @@ var defaultTransport = func() *http.Transport {
 
 // QuickTransport is the default transport that gives up on a server it
 // cannot connect to within wait (the connection and TLS each; the name has
-// its own time, resolver.DialWithin): the user's relay is tried then
-// (service.relayFallback), rather than waiting for the default's half a
-// minute.
+// its own time, resolver.DialWithin), rather than waiting for the default's
+// half a minute.
 func QuickTransport(wait time.Duration) *http.Transport {
 	t := defaultTransport.Clone()
 	t.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
@@ -162,8 +160,8 @@ var directHTTP2Client = &http.Client{
 var ErrDirectHTTP2Unavailable = errors.New("direct HTTP/2 unavailable with a custom control plane transport")
 
 // DoDirectHTTP2 sends a short HTTP/2 probe with the shared cookie jar. It
-// is available only on the default route so it cannot skip a configured
-// API relay. The response body remains readable until the request deadline.
+// is available only on the default route. The response body remains
+// readable until the request deadline.
 func DoDirectHTTP2(req *http.Request) (*http.Response, error) {
 	if client.Transport != defaultTransport {
 		return nil, ErrDirectHTTP2Unavailable

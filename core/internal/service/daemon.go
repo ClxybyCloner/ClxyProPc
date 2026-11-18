@@ -106,9 +106,9 @@ type Daemon struct {
 	autoTesting atomic.Bool
 	// tokenOnly makes the API answer only the local token or a signed-in
 	// browser (RequireLocalToken).
-	tokenOnly atomic.Bool
+	tokenOnly   atomic.Bool
 	currentCore string
-	routing   routingState
+	routing     routingState
 	// wakeHook replaces wake in tests.
 	wakeHook func(*proxyEngine) error
 	// devicesOnce registers the accounts' devices after the first
@@ -996,7 +996,7 @@ func (d *Daemon) updateSettings(next config.Config, newPassword *string) (settin
 		}
 	}
 	if next.Network != prev.Network {
-		if err := configureAPIRelay(next.Network); err != nil {
+		if err := configureUpstreamProxy(next.Network); err != nil {
 			return settingsChange{}, fmt.Errorf("invalid network configuration: %w", err)
 		}
 	}

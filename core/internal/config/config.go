@@ -5,13 +5,11 @@ package config
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
 	"net"
-	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -252,33 +250,9 @@ type Dashboard struct {
 
 // Network configures control-plane access.
 type Network struct {
-	// APIRelay, when set, sends the control-plane requests (FxA, Guardian,
-	// the server list, the geo files, and flags) through the user's own
-	// relay: an https:// URL that takes the target in its url parameter
-	// (docs/relay: a Cloudflare Worker or a PHP file). The VPN traffic
-	// never uses it.
-	APIRelay string `json:"api_relay"`
-	// APIRelayEnabled uses APIRelay (APIRelayInUse): while off, the address
-	// stays set. It controls only the personal relay, independently of the
-	// shared relay pool. On by default for an address already configured.
-	APIRelayEnabled bool `json:"api_relay_enabled"`
-	// SharedRelayEnabled allows the manifest's shared Guardian relay pool
-	// after HTTP 451 is first retried directly with a doubled path. An
-	// enabled personal relay takes priority.
-	SharedRelayEnabled bool `json:"shared_relay_enabled"`
-	// APIRelayECH hides the relay's name from the network with Encrypted
-	// Client Hello (TLS 1.3): "on" (or empty: with ECH when the relay's
-	// name has a key, otherwise without; a relay on Cloudflare, a Worker,
-	// has one), "require" (no request without ECH), or "off".
-	APIRelayECH string `json:"api_relay_ech"`
-	// APIRelayECHConfig is where the ECH key comes from: empty, the HTTPS
-	// DNS record of the relay's own name; a name, that name's record (for
-	// a relay on Cloudflare, any Cloudflare name, such as
-	// cloudflare-ech.com); or the key itself, an ECHConfigList in base64.
-	APIRelayECHConfig string `json:"api_relay_ech_config"`
-	GuardianEndpoint  string `json:"guardian_endpoint"`
+	GuardianEndpoint string `json:"guardian_endpoint"`
 	// HelloSplit is how the TLS ClientHello of the connections to Mozilla
-	// and to the relay goes out, for a network that filters by server name:
+	// goes out, for a network that filters by server name:
 	// "off" (or empty: whole), "first-byte", "sni" (cut inside the name), or
 	// "record" (two TLS records, cut inside the name).
 	HelloSplit string `json:"hello_split"`
@@ -509,16 +483,6 @@ func (n Network) UpstreamProxyInUse() string {
 	return n.UpstreamProxy
 }
 
-// APIRelayInUse always returns empty in ClxyPro: no relay transport is used.
-func (n Network) APIRelayInUse() string {
-	return ""
-}
-
-// SharedRelayInUse always returns false in ClxyPro: direct connections only.
-func (n Network) SharedRelayInUse() bool {
-	return false
-}
-
 // SettleUpstreamProxy is the upstream proxy as a client saved it over prev:
 // cleaned, on when an address comes where there was none, so that filling it
 // in is enough, and off without an address.
@@ -562,60 +526,6 @@ func ValidateUpstreamProxy(n Network, listen string) error {
 		}
 	}
 	return nil
-}
-
-// ValidateRelay checks an API relay URL: empty (none), or https:// with a
-// host. Plain http is refused: the sign-in and the account tokens cross
-// the relay.
-func ValidateRelay(raw string) error {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return nil
-	}
-	u, err := url.Parse(raw)
-	if err != nil {
-		return err
-	}
-	if u.Scheme != "https" || u.Host == "" {
-		return errors.New("must be an https:// URL (the sign-in and the account tokens cross it)")
-	}
-	return nil
-}
-
-// The network.api_relay_ech choices.
-const (
-	RelayECHOff     = "off"
-	RelayECHOn      = "on"
-	RelayECHRequire = "require"
-)
-
-// ParseECHSource reads network.api_relay_ech_config: empty (both results
-// empty: the relay's own name), a DNS name whose HTTPS record has the key,
-// or the key itself, an ECHConfigList in base64.
-func ParseECHSource(raw string) (name string, key []byte, err error) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return "", nil, nil
-	}
-	if strings.Contains(raw, ".") && !strings.ContainsAny(raw, "/+=") {
-		name = strings.TrimSuffix(strings.ToLower(raw), ".")
-		for _, label := range strings.Split(name, ".") {
-			if label == "" || len(label) > 63 || strings.Trim(label, "abcdefghijklmnopqrstuvwxyz0123456789-_") != "" {
-				return "", nil, fmt.Errorf("%q is not a DNS name", raw)
-			}
-		}
-		return name, nil, nil
-	}
-	for _, enc := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
-		if key, err = enc.DecodeString(raw); err == nil {
-			break
-		}
-	}
-	// An ECHConfigList is its own length, then the configs.
-	if err != nil || len(key) < 2 || int(key[0])<<8|int(key[1]) != len(key)-2 {
-		return "", nil, errors.New("neither a DNS name nor an ECH key (an ECHConfigList in base64)")
-	}
-	return "", key, nil
 }
 
 // Save writes cfg to path with owner-only permissions; the file can hold
@@ -769,7 +679,7 @@ const (
 
 // appExecutables are the desktop app's executables: Windows, Linux, and
 // macOS (inside ClxyPro.app/Contents/MacOS).
-var appExecutables = []string{"ClxyPro.exe", "clxypro.exe", "clxy-vpn.exe", "ClxyPro"}
+var appExecutables = []string{"ClxyPro.exe", "clxypro.exe", "clxy-vpn.exe", "clxy-vpn", "ClxyPro"}
 
 // DefaultDataDir returns the data folder: DataDirName next to the running
 // executable (symlinks resolved, so a linked binary still uses its real

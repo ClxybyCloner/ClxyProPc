@@ -3,18 +3,14 @@ package service
 import (
 	"context"
 	"net"
-	"net/http"
 	"time"
 
 	"github.com/ClxybyCloner/ClxyProPc/core/internal/config"
-	"github.com/ClxybyCloner/ClxyProPc/core/internal/controlplane"
 	"github.com/ClxybyCloner/ClxyProPc/core/internal/guardian"
 	"github.com/ClxybyCloner/ClxyProPc/core/internal/hellosplit"
 	"github.com/ClxybyCloner/ClxyProPc/core/internal/logx"
 	"github.com/ClxybyCloner/ClxyProPc/core/internal/resolver"
 )
-
-const apiRelayDialTimeout = 20 * time.Second
 
 // resolverDialer dials through the configured DNS servers with a timeout.
 type resolverDialer struct{ timeout time.Duration }
@@ -50,8 +46,10 @@ func configureDNS(cfg config.DNS) error {
 	return nil
 }
 
-// configureAPIRelay configures upstream proxy and splits if any; ClxyPro uses direct connections only.
-func configureAPIRelay(n config.Network) error {
+// configureUpstreamProxy applies the TLS split and the upstream SOCKS5 proxy
+// for the control-plane connections. ClxyPro connects directly to Mozilla;
+// there is no relay transport.
+func configureUpstreamProxy(n config.Network) error {
 	hellosplit.Set(n.HelloSplit)
 	proxyAddress := n.UpstreamProxyInUse()
 	if err := resolver.SetUpstreamProxy(proxyAddress, n.UpstreamProxyUsername, n.UpstreamProxyPassword); err != nil {
@@ -61,11 +59,5 @@ func configureAPIRelay(n config.Network) error {
 		logx.Info("connections to Mozilla and the control plane go through the upstream proxy=%s", proxyAddress)
 	}
 	guardian.SetRegionRecovery(nil)
-	if apiRelayTransport != nil && controlplane.Transport() == apiRelayTransport {
-		controlplane.SetTransport(nil)
-	}
-	apiRelayTransport = nil
 	return nil
 }
-
-var apiRelayTransport http.RoundTripper

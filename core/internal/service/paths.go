@@ -89,7 +89,7 @@ func LoadConfig(paths DataPaths, forceVerbose bool) (config.Config, error) {
 	if err := configureDNS(cfg.DNS); err != nil {
 		return config.Config{}, fmt.Errorf("invalid dns.servers: %w", err)
 	}
-	if err := configureAPIRelay(cfg.Network); err != nil {
+	if err := configureUpstreamProxy(cfg.Network); err != nil {
 		return config.Config{}, fmt.Errorf("invalid network configuration: %w", err)
 	}
 	return cfg, nil

@@ -35,6 +35,12 @@ jobs:
       - name: Enable Windows desktop
         run: flutter config --enable-windows-desktop
 
+      # Scoped to the config and service packages: the rest of the suite
+      # needs live network access or Windows-only behavior.
+      - name: Test Go core
+        working-directory: core
+        run: go test -count=1 ./internal/config/ ./internal/service/
+
       - name: Build Windows Portable Package
         shell: pwsh
         run: |

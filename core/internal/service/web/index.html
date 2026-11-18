@@ -603,32 +603,6 @@
                 </div>
               </fieldset>
 
-              <fieldset class="card" id="set-blocked">
-                <legend><svg><use href="#i-lock"/></svg>If Mozilla is blocked</legend>
-                <div class="set-list">
-                  <div class="set-row">
-                    <span class="set-ic"><svg><use href="#i-swap"/></svg></span>
-                    <span class="set-text"><label for="f-shared-relay-on">Shared relay</label><small>Use the app's shared relays if Mozilla blocks your region. An enabled personal relay takes priority.</small></span>
-                    <span class="set-ctl"><label class="switch"><input type="checkbox" id="f-shared-relay-on" name="network.shared_relay_enabled"><span></span></label></span>
-                  </div>
-                  <div class="set-row">
-                    <span class="set-ic"><svg><use href="#i-swap"/></svg></span>
-                    <span class="set-text"><label for="f-relay-on">Personal relay</label><small>Turning this off keeps your address and does not disable shared relays.</small></span>
-                    <span class="set-ctl"><label class="switch"><input type="checkbox" id="f-relay-on" name="network.api_relay_enabled"><span></span></label></span>
-                  </div>
-                  <div class="set-row">
-                    <span class="set-ic"><svg><use href="#i-swap"/></svg></span>
-                    <span class="set-text"><label for="f-relay">Relay server</label><small>Your own Cloudflare Worker, or relay.php on your own host.<br>Used only when Mozilla doesn't answer directly: the sign-in, accounts, and server list go through it, not the VPN traffic.</small></span>
-                    <span class="set-ctl"><input id="f-relay" name="network.api_relay" spellcheck="false" placeholder="https://relay.NAME.workers.dev/?secret=…"></span>
-                  </div>
-                  <div class="set-row">
-                    <span class="set-ic"><svg><use href="#i-gauge"/></svg></span>
-                    <span class="set-text"><span>Relay health</span><small>Test the entered address without saving it or enabling the relay.</small></span>
-                    <span class="set-ctl"><button type="button" class="btn" id="relay-test">Test relay health</button></span>
-                  </div>
-                </div>
-              </fieldset>
-
               <fieldset class="card" id="set-fragment">
                 <legend><svg><use href="#i-cut"/></svg>TLS fragmentation</legend>
                 <div class="set-list">
@@ -792,20 +766,6 @@
         <button type="submit" id="signin-submit" class="btn primary">Sign in</button>
       </div>
     </form>
-  </dialog>
-
-  <dialog id="relay-test-dialog" aria-labelledby="relay-test-title">
-    <div class="dialog-body">
-      <h2 id="relay-test-title">Relay health test</h2>
-      <p class="muted small">Checks only the relay. No Mozilla request or account information is sent.</p>
-      <p id="relay-test-state" role="status">Testing…</p>
-      <pre id="relay-test-log" dir="ltr" aria-live="polite"></pre>
-      <div class="dialog-actions">
-        <button type="button" class="btn" id="relay-test-copy">Copy report</button>
-        <button type="button" class="btn" id="relay-test-retry">Retry</button>
-        <button type="button" class="btn primary" id="relay-test-close">Close</button>
-      </div>
-    </div>
   </dialog>
   <div id="toast" class="toast" hidden></div>
 </body>
