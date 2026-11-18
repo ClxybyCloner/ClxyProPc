@@ -114,7 +114,8 @@ class AppState extends ChangeNotifier {
       _startPolling();
       loadServers();
     } else {
-      addLog('Warn', 'Core sidecar not yet available. Retrying…');
+      addLog('Warn',
+          'Core sidecar not available: ${coreProcess.lastError ?? 'unknown reason'}. Retrying…');
       // Retry in 3 seconds
       Timer(const Duration(seconds: 3), _startCore);
     }

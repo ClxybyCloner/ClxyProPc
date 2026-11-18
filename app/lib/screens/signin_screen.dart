@@ -67,7 +67,8 @@ class _SignInScreenState extends State<SignInScreen> {
     if (api == null) {
       setState(() {
         _busy = false;
-        _error = 'Core sidecar not connected. Please ensure core is running.';
+        _error = widget.state.coreProcess.lastError ??
+            'Core sidecar not connected. Please ensure core is running.';
       });
       return;
     }
