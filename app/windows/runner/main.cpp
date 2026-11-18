@@ -107,6 +107,30 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   FlutterWindow window(project, static_cast<WPARAM>(std::stoul(key)), start_hidden);
   Win32Window::Size size(420, 720);
+  // On a small screen, shrink the window to fit the work area (with a
+  // small margin) instead of overflowing it.
+  {
+    RECT work;
+    SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0);
+    HMONITOR monitor = MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY);
+    double scale = FlutterDesktopGetDpiForMonitor(monitor) / 96.0;
+    unsigned int max_w =
+        static_cast<unsigned int>((work.right - work.left) / scale);
+    unsigned int max_h =
+        static_cast<unsigned int>((work.bottom - work.top) / scale);
+    if (max_w > 32) {
+      max_w -= 32;
+    }
+    if (max_h > 32) {
+      max_h -= 32;
+    }
+    if (size.width > max_w) {
+      size.width = max_w;
+    }
+    if (size.height > max_h) {
+      size.height = max_h;
+    }
+  }
   Win32Window::Point origin = CenteredOrigin(size);
   if (!window.Create(L"ClxyPro", origin, size)) {
     return EXIT_FAILURE;

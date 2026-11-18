@@ -405,21 +405,60 @@ std::optional<LRESULT> DesktopBridge::HandleMessage(UINT message,
                                                     WPARAM wparam,
                                                     LPARAM lparam) {
   if (message == WM_GETMINMAXINFO) {
-    // The smallest window the computer layout is made for: 640 by 480
-    // logical pixels inside the frame (narrower, the app uses the phone's);
-    // small enough to snap into half, or a quarter, of most screens. The
-    // limit is for the whole window, so the frame is added; rounded up, so
-    // the inside never comes out a fraction short.
+    // The app is an exact clone of the phone client: its widest content is
+    // 460 logical pixels plus 20 pixels of padding on each side, and there
+    // is no wide layout in Dart — a wider window only adds dead space on
+    // the sides. So the window stays phone-shaped: between 400 and 520
+    // logical pixels wide inside the frame, at most 960 tall. The limits
+    // are for the whole window, so the frame is added; rounded up, so the
+    // inside never comes out a fraction short. The maximized size is the
+    // same phone shape, centered in the work area (and never taller than
+    // it, so a small screen still fits).
     const UINT dpi = GetDpiForWindow(window_);
     const double scale = dpi / 96.0;
-    RECT rect = {0, 0, static_cast<LONG>(std::ceil(640 * scale)),
-                 static_cast<LONG>(std::ceil(480 * scale))};
-    AdjustWindowRectExForDpi(
-        &rect, static_cast<DWORD>(GetWindowLongPtr(window_, GWL_STYLE)), FALSE,
-        static_cast<DWORD>(GetWindowLongPtr(window_, GWL_EXSTYLE)), dpi);
+    const DWORD style =
+        static_cast<DWORD>(GetWindowLongPtr(window_, GWL_STYLE));
+    const DWORD ex_style =
+        static_cast<DWORD>(GetWindowLongPtr(window_, GWL_EXSTYLE));
+    auto frame = [&](LONG w, LONG h) {
+      RECT rect = {0, 0, static_cast<LONG>(std::ceil(w * scale)),
+                   static_cast<LONG>(std::ceil(h * scale))};
+      AdjustWindowRectExForDpi(&rect, style, FALSE, ex_style, dpi);
+      return POINT{rect.right - rect.left, rect.bottom - rect.top};
+    };
     auto* info = reinterpret_cast<MINMAXINFO*>(lparam);
-    info->ptMinTrackSize.x = rect.right - rect.left;
-    info->ptMinTrackSize.y = rect.bottom - rect.top;
+    POINT min_size = frame(400, 480);
+    info->ptMinTrackSize.x = min_size.x;
+    info->ptMinTrackSize.y = min_size.y;
+    RECT work;
+    SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0);
+    const LONG work_w =
+        static_cast<LONG>((work.right - work.left) / scale);
+    const LONG work_h =
+        static_cast<LONG>((work.bottom - work.top) / scale);
+    LONG max_w = work_w < 520 ? work_w : 520;
+    LONG max_h = work_h < 960 ? work_h : 960;
+    if (max_w < 400) {
+      max_w = 400;
+    }
+    if (max_h < 480) {
+      max_h = 480;
+    }
+    POINT max_size = frame(max_w, max_h);
+    info->ptMaxTrackSize.x = max_size.x;
+    info->ptMaxTrackSize.y = max_size.y;
+    info->ptMaxSize.x = max_size.x;
+    info->ptMaxSize.y = max_size.y;
+    info->ptMaxPosition.x =
+        work.left + ((work.right - work.left) - max_size.x) / 2;
+    info->ptMaxPosition.y =
+        work.top + ((work.bottom - work.top) - max_size.y) / 2;
+    if (info->ptMaxPosition.x < work.left) {
+      info->ptMaxPosition.x = work.left;
+    }
+    if (info->ptMaxPosition.y < work.top) {
+      info->ptMaxPosition.y = work.top;
+    }
     return 0;
   }
   // The taskbar's theme changed: the icon for it, at once.
