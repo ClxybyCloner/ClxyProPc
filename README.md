@@ -2,7 +2,11 @@
 
 > Exact Windows Portable clone of the Android [ClxyPro](https://github.com/ClxybyCloner/ClxyPro) client (v1.5.11).
 
-ClxyPro for Windows is a high-performance, completely portable VPN and Proxy client designed for Windows 10 and 11. It faithfully replicates every screen, color, animation, flow, and behavior from the Android edition, featuring dual-core acceleration, quantum serial authentication, and zero-relay direct paths.
+ClxyPro for Windows is a high-performance, completely portable VPN and Proxy client designed for Windows 10 and 11 (x64). It faithfully replicates every screen, color, animation, flow, and behavior from the Android edition, featuring dual-core acceleration, quantum serial authentication, and zero-relay direct paths.
+
+[![Build Windows Portable](https://github.com/ClxybyCloner/ClxyProPc/actions/workflows/build.yml/badge.svg)](https://github.com/ClxybyCloner/ClxyProPc/actions/workflows/build.yml)
+[![Latest Release](https://img.shields.io/github/v/release/ClxybyCloner/ClxyProPc?color=blue&label=Release)](https://github.com/ClxybyCloner/ClxyProPc/releases/tag/v1.5.11)
+[![Download Zip](https://img.shields.io/badge/Download-Portable%20Zip%20(v1.5.11)-success?logo=windows)](https://github.com/ClxybyCloner/ClxyProPc/releases/download/v1.5.11/ClxyPro-1.5.11-Windows-x64.zip)
 
 ---
 
@@ -95,4 +99,4 @@ Every commit to `main` and tag `v*` triggers the GitHub Actions workflow (`.gith
 ## 🛡️ License
 
 Open source under the Apache 2.0 / MIT License.
-ClxyPro is developed and maintained by ClxybyCloner.
+ClxyPro is developed and maintained by [ClxybyCloner](https://github.com/ClxybyCloner).
