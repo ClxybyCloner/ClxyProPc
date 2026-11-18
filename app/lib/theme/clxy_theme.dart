@@ -13,6 +13,11 @@ const LinearGradient clxyDisconnectBrush = LinearGradient(
   colors: [ClxyColors.redDisconnectStart, ClxyColors.redDisconnectEnd],
 );
 
+class ClxyTheme {
+  static ThemeData get darkTheme => buildClxyTheme();
+  static ThemeData rtlTheme() => buildClxyTheme(isRtl: true);
+}
+
 ThemeData buildClxyTheme({bool isRtl = false}) {
   final fontFamily = isRtl ? 'Vazirmatn' : 'Inter';
   return ThemeData(
