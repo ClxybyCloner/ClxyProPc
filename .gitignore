@@ -1,0 +1,32 @@
+# Build outputs
+/dist/
+/app/build/
+/build/
+
+# User data & credentials
+/user-data/
+local-api.token
+session.txt
+*.key
+*.sig
+
+# Flutter & Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+
+# Executables & Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+
+# IDE & Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

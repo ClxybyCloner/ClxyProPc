@@ -1,0 +1,41 @@
+name: clxy_pro
+description: "ClxyPro for Windows (Portable) - Exact Clone of Android Client"
+publish_to: 'none'
+
+version: 1.5.11+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_svg: ^2.0.10
+  intl: any
+  http: ^1.2.0
+  crypto: ^3.0.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/clxy_logo.png
+    - assets/images/ic_launcher.png
+    - assets/sounds/connected.wav
+    - assets/tray/
+    - assets/flags/
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/inter.ttf
+    - family: Vazirmatn
+      fonts:
+        - asset: assets/fonts/vazirmatn.ttf
