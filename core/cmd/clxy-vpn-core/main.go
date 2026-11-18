@@ -1,4 +1,4 @@
-﻿//go:generate go run ../../tools/winres
+//go:generate go run ../../tools/winres
 
 package main
 

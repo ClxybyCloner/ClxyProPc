@@ -1,4 +1,4 @@
-﻿//go:build e2e && (linux || darwin)
+//go:build e2e && (linux || darwin)
 
 package tunservice
 

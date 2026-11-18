@@ -1,4 +1,4 @@
-﻿// Package config holds the persistent settings of the multi-account daemon:
+// Package config holds the persistent settings of the multi-account daemon:
 // a single JSON file in the data directory that the CLI creates with
 // defaults, the user may edit by hand, and the dashboard updates.
 package config

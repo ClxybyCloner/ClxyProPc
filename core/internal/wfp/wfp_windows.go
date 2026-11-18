@@ -1,4 +1,4 @@
-﻿package wfp
+package wfp
 
 import (
 	"fmt"

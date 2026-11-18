@@ -1,4 +1,4 @@
-﻿// Package accounts stores Firefox Accounts credentials for the multi-account
+// Package accounts stores Firefox Accounts credentials for the multi-account
 // daemon and decides which account supplies the ProxyPass: one account is
 // active at a time, and the next account in priority order takes over when
 // the active one reaches its quota threshold or can no longer be used.

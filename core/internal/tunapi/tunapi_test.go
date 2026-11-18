@@ -1,4 +1,4 @@
-﻿package tunapi
+package tunapi
 
 import (
 	"errors"

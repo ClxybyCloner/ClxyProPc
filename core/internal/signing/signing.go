@@ -1,4 +1,4 @@
-﻿// Package signing checks the Ed25519 signatures of updates: the releases'
+// Package signing checks the Ed25519 signatures of updates: the releases'
 // SHA256SUMS.txt, which the Windows app checks before it installs a new
 // version of itself (internal/update), and the TUN service's executable,
 // which the installed service checks before it replaces itself

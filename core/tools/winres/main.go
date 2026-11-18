@@ -1,4 +1,4 @@
-﻿// Command winres writes the Windows resources of an executable (its icon,
+// Command winres writes the Windows resources of an executable (its icon,
 // version information, and application manifest) as .syso objects that go
 // build links into the package in the current folder: ./cmd/clxy-vpn-core,
 // or with -program tun ./cmd/clxy-vpn-tun. scripts/build-windows.ps1 runs

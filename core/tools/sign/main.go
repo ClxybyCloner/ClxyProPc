@@ -1,4 +1,4 @@
-﻿// Command sign makes and uses the Ed25519 key that updates are signed with
+// Command sign makes and uses the Ed25519 key that updates are signed with
 // (internal/signing): a release's SHA256SUMS.txt, which the Windows app
 // checks before it installs a new version (internal/update), and the TUN
 // service's executable, which the installed service checks before it

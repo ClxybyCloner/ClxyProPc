@@ -1,4 +1,4 @@
-﻿package fxa
+package fxa
 
 import (
 	"net/http"

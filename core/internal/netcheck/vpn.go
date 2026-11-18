@@ -1,4 +1,4 @@
-﻿package netcheck
+package netcheck
 
 import (
 	"context"

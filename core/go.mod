@@ -1,4 +1,4 @@
-﻿module github.com/ClxybyCloner/ClxyProPc/core
+module github.com/ClxybyCloner/ClxyProPc/core
 
 go 1.27.2
 

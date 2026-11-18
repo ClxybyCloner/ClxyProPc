@@ -1,4 +1,4 @@
-﻿// Package controlplane owns the shared HTTP client for every control-plane
+// Package controlplane owns the shared HTTP client for every control-plane
 // API request (Firefox Accounts, Guardian, Remote Settings). It is kept
 // separate from the data-plane CONNECT sessions and from http.DefaultClient.
 package controlplane

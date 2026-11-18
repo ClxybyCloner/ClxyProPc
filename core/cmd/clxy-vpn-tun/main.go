@@ -1,4 +1,4 @@
-﻿//go:generate go run ../../tools/winres -program tun
+//go:generate go run ../../tools/winres -program tun
 
 // Command clxy-vpn-tun is the TUN service of the desktop TUN mode: it
 // holds the TUN adapter, its routes, and the DNS filters with the system's

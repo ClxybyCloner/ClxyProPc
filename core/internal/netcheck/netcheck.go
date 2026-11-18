@@ -1,4 +1,4 @@
-﻿// Package netcheck tells whether this device reaches the internet at all,
+// Package netcheck tells whether this device reaches the internet at all,
 // outside the tunnel, so a failed connection to Mozilla can be told apart
 // from a device without internet: a network that filters Mozilla answers
 // these checks, one without internet does not.

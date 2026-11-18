@@ -1,4 +1,4 @@
-﻿package accounts
+package accounts
 
 import (
 	"crypto/aes"

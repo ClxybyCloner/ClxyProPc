@@ -1,4 +1,4 @@
-﻿// Package resolver resolves the host names this program connects to itself
+// Package resolver resolves the host names this program connects to itself
 // (Mozilla's Fastly proxy servers and the account, Guardian, and server-list
 // APIs) through configurable DNS servers: DNS over HTTPS, DNS over TLS, or
 // plain DNS. On filtered networks the system resolver may return wrong

@@ -1,4 +1,4 @@
-﻿// Package fxa implements the Firefox Accounts client: password login with
+// Package fxa implements the Firefox Accounts client: password login with
 // HAWK-authenticated session calls, sign-in verification, OAuth token
 // issuance and refresh, the Fastly anti-bot challenge that guards the
 // account API, and the local OAuth token cache.

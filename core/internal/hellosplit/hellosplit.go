@@ -1,4 +1,4 @@
-﻿// Package hellosplit sends the TLS ClientHello of the program's connections
+// Package hellosplit sends the TLS ClientHello of the program's connections
 // to Mozilla across several TCP segments, so that a network filtering by
 // server name, whose inspection does not put segments back together, does
 // not read the name. The server gets the same bytes and the name stays the

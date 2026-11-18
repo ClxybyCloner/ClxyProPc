@@ -1,4 +1,4 @@
-﻿// Package update installs new versions of the desktop app on Windows,
+// Package update installs new versions of the desktop app on Windows,
 // Linux, and macOS. The app finds a newer release in its manifest and asks its
 // core to download it: the core fetches the release's SHA256SUMS.txt and
 // its signature (SHA256SUMS.txt.sig, Ed25519, checked against the key built

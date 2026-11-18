@@ -1,4 +1,4 @@
-﻿// Package tunstack runs the TUN device of the desktop TUN mode with sing-tun
+// Package tunstack runs the TUN device of the desktop TUN mode with sing-tun
 // (github.com/sagernet/sing-tun): the adapter (wintun on Windows), its
 // routes, and a userspace TCP/IP stack (gVisor) that hands each flow to a
 // Handler. It is the only package that imports sing-tun, so that a sing-tun

@@ -1,4 +1,4 @@
-﻿package serverlist
+package serverlist
 
 import (
 	"context"

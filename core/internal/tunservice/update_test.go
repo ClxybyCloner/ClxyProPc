@@ -1,4 +1,4 @@
-﻿package tunservice
+package tunservice
 
 import (
 	"crypto/ed25519"

@@ -1,4 +1,4 @@
-﻿// Package signinproxy is the proxy of the app's browser sign-in: an HTTP
+// Package signinproxy is the proxy of the app's browser sign-in: an HTTP
 // CONNECT proxy on loopback through which the app's browser view reaches
 // Mozilla's sign-in pages. It connects the way the core's own account
 // requests do (controlplane.DialContext: the configured DNS servers, every

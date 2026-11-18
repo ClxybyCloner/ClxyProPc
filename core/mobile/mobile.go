@@ -1,4 +1,4 @@
-﻿// Package mobile is the gomobile entry point of the core: the Android app
+// Package mobile is the gomobile entry point of the core: the Android app
 // (and later other app shells) starts and stops the same daemon the
 // desktop binary runs, with the data folder the app chooses. The app then
 // talks to it through the dashboard's HTTP API on loopback, as the desktop

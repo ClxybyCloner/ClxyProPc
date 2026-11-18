@@ -1,4 +1,4 @@
-﻿// Package serverlist reads Mozilla's Remote Settings vpn-serverlist
+// Package serverlist reads Mozilla's Remote Settings vpn-serverlist
 // collection and applies the record filters Firefox evaluates before
 // choosing a proxy location.
 package serverlist

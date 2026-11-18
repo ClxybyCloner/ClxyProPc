@@ -1,4 +1,4 @@
-﻿// Package guardian is the client for Mozilla's Guardian API: it issues
+// Package guardian is the client for Mozilla's Guardian API: it issues
 // the ProxyPass bearer token for the Fastly CONNECT proxies, reports quota
 // usage, and activates or reports the account's proxy entitlement.
 package guardian

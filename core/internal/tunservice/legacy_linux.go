@@ -1,4 +1,4 @@
-﻿package tunservice
+package tunservice
 
 import (
 	"os"
