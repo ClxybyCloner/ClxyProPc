@@ -72,9 +72,16 @@ class _MainShellState extends State<MainShell> {
             case 2: // Toggle Connect
               if (_appState.isConnected) {
                 _appState.disconnect();
+              } else if (_appState.isConnecting) {
+                _bridge?.show();
+              } else if (_readyToConnect()) {
+                // Quick-connect in the background, like the Android tile:
+                // the window only opens when the user must do something
+                // first. The serial callback cannot fire here (readiness
+                // already checked it); it only aborts if state changed.
+                _appState.toggleConnect(onNeedQuantumSerial: () async => false);
               } else {
                 _bridge?.show();
-                // If serial needed, showing window will guide the user
               }
               break;
             case 3: // Quit
@@ -85,6 +92,15 @@ class _MainShellState extends State<MainShell> {
       );
       _updateTray();
     }
+  }
+
+  /// True when a background connect can proceed without the user. The only
+  /// step that needs the user before connecting is the Quantum serial; this
+  /// build has no consent step, and sign-in is not a connect prerequisite
+  /// (the home button connects the same way without a session).
+  bool _readyToConnect() {
+    if (_appState.isQuantum && !Prefs.quantumUnlocked) return false;
+    return true;
   }
 
   void _updateTray() {
