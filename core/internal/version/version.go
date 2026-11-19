@@ -12,7 +12,7 @@ import (
 //	-ldflags "-X github.com/ClxybyCloner/ClxyProPc/core/internal/version.Current=1.1.0"
 //
 // "0.0.0" is a development build.
-var Current = "1.5.19"
+var Current = "1.5.20"
 
 // Newer reports whether version a is newer than b ("major.minor.patch";
 // missing or unparsable parts count as 0).

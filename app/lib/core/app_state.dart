@@ -1,12 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'core_api.dart';
 import 'core_process.dart';
 import 'github_updates.dart';
 import 'models.dart';
 import 'prefs.dart';
-import 'quantum_serial.dart';
 
 enum VpnStatus { idle, connecting, connected, disconnecting, failed }
 
@@ -111,6 +109,9 @@ class AppState extends ChangeNotifier {
     final api = await coreProcess.startAndConnect();
     if (api != null) {
       addLog('System', 'Connected to local core daemon.');
+      // Push the app's saved core/mode/location into the daemon so the
+      // core matches what the UI shows after a restart.
+      await _syncCoreSettings();
       _startPolling();
       loadServers();
     } else {
@@ -183,12 +184,83 @@ class AppState extends ChangeNotifier {
     _updateRouteInfo();
     loadServers();
     notifyListeners();
+    _pushCore(newCoreId);
   }
 
   void setMode(String newMode) {
     mode = newMode;
     Prefs.mode = newMode;
     notifyListeners();
+    _pushMode(newMode);
+  }
+
+  /// Pushes the app's saved core/mode/location into the daemon.
+  Future<void> _syncCoreSettings() async {
+    final api = coreProcess.api;
+    if (api == null) return;
+    try {
+      await _pushCore(coreId);
+      await _pushMode(mode);
+      if (isHyper) {
+        await _pushLocation(Prefs.server('firefox'));
+      }
+    } catch (e) {
+      addLog('Warn', 'Could not sync settings to the core: $e');
+    }
+  }
+
+  /// POST /api/core restarts the engine even when nothing changed, so
+  /// compare first via GET /api/core.
+  Future<void> _pushCore(String wanted) async {
+    final api = coreProcess.api;
+    if (api == null) return;
+    try {
+      final current = await api.getCore();
+      if (current != wanted.toLowerCase()) {
+        await api.setCore(wanted);
+      }
+    } catch (e) {
+      addLog('Warn', 'Could not set the core to $wanted: $e');
+    }
+  }
+
+  /// VPN -> system_proxy.mode "tun", PROXY -> "set". The core no-ops when
+  /// the mode is unchanged; TUN 400s when unavailable here, and then the
+  /// app falls back to the system proxy instead of leaving no route.
+  Future<void> _pushMode(String wantedMode) async {
+    final api = coreProcess.api;
+    if (api == null) return;
+    final wanted = wantedMode == 'VPN' ? 'tun' : 'set';
+    final wantMapped = wantedMode == 'VPN' ? 'vpn' : 'proxy';
+    try {
+      final st = await api.status();
+      if (st.mode == wantMapped) return;
+      try {
+        await api.setSystemProxyMode(wanted);
+      } on HttpException {
+        if (wanted == 'tun') {
+          await api.setSystemProxyMode('set');
+          addLog('Warn', 'TUN is unavailable here — using system proxy mode.');
+        } else {
+          rethrow;
+        }
+      }
+    } catch (e) {
+      addLog('Warn', 'Could not set $wantedMode mode on the core: $e');
+    }
+  }
+
+  /// The core restarts the engine only when the location actually changed,
+  /// so this is safe to call unconditionally. "REC" is converted to ""
+  /// (recommended) by the core itself.
+  Future<void> _pushLocation(String country) async {
+    final api = coreProcess.api;
+    if (api == null) return;
+    try {
+      await api.setLocation(country);
+    } catch (e) {
+      addLog('Warn', 'Could not set the location on the core: $e');
+    }
   }
 
   Future<void> toggleConnect({
@@ -204,12 +276,24 @@ class AppState extends ChangeNotifier {
   Future<void> connect({
     required Future<bool> Function() onNeedQuantumSerial,
   }) async {
-    // 1. Quantum serial check
-    if (isQuantum && !Prefs.quantumUnlocked) {
-      final unlocked = await onNeedQuantumSerial();
-      if (!unlocked) {
-        return;
+    // Quantum has no Windows engine yet: the core's aether package is
+    // unwired dead code and the release ships no aether.exe (Android's
+    // binary is an ARM .so). Refuse honestly instead of silently
+    // connecting through the Firefox engine under the Quantum label.
+    if (isQuantum) {
+      if (!Prefs.quantumUnlocked) {
+        final unlocked = await onNeedQuantumSerial();
+        if (!unlocked) {
+          return;
+        }
       }
+      status = VpnStatus.failed;
+      statusLabel = 'Quantum unavailable';
+      errorMessage =
+          'The Quantum (Aether) engine has no Windows build yet — it needs aether.exe. Switch to Hyper to connect.';
+      addLog('Error', 'Quantum connect refused: no Windows aether engine.');
+      notifyListeners();
+      return;
     }
 
     status = VpnStatus.connecting;
@@ -228,8 +312,44 @@ class AppState extends ChangeNotifier {
     }
 
     try {
-      final targetServer = isHyper ? Prefs.server('firefox') : '';
-      await api.connect(mode: mode, core: coreId, server: targetServer);
+      // Sync core/mode/location into the daemon (compare-first, so a
+      // connect does not restart the engine for settings already set).
+      await _pushCore(coreId);
+      await _pushMode(mode);
+      await _pushLocation(Prefs.server('firefox'));
+
+      // Power on: the call returns at once; the connect runs async in
+      // the core with a 1-minute retry window.
+      await api.powerOn();
+
+      // Wait for the engine to report running (connected) or a final
+      // failure. The core gives up on its own after ~60s.
+      final deadline = DateTime.now().add(const Duration(seconds: 65));
+      String lastMessage = '';
+      while (DateTime.now().isBefore(deadline)) {
+        final st = await api.status();
+        if (st.connected) break;
+        if (st.connectFailure.isNotEmpty && !st.connectPending) {
+          throw Exception(st.error ?? 'Connection failed');
+        }
+        if (st.phase == 'error') {
+          throw Exception(
+              st.phaseMessage.isNotEmpty ? st.phaseMessage : 'Connection failed');
+        }
+        if (st.phase == 'waiting' && st.phaseCode == 'no_accounts') {
+          throw Exception('No account — sign in first');
+        }
+        if (st.phaseMessage.isNotEmpty) lastMessage = st.phaseMessage;
+        await Future.delayed(const Duration(seconds: 1));
+        // The user may have hit disconnect while waiting.
+        if (status != VpnStatus.connecting) return;
+      }
+      final st = await api.status();
+      if (!st.connected) {
+        throw Exception(lastMessage.isNotEmpty
+            ? 'Connection timed out ($lastMessage)'
+            : 'Connection timed out');
+      }
 
       // Verify reachability (YouTube + Facebook)
       statusLabel = 'Verifying tunnel traffic…';
@@ -253,7 +373,7 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       status = VpnStatus.failed;
       statusLabel = 'Connection Failed';
-      errorMessage = e.toString();
+      errorMessage = e.toString().replaceFirst('Exception: ', '');
       addLog('Error', 'Connect failed: $e');
     }
     notifyListeners();
@@ -267,7 +387,7 @@ class AppState extends ChangeNotifier {
     final api = coreProcess.api;
     if (api != null) {
       try {
-        await api.disconnect();
+        await api.powerOff();
       } catch (_) {}
     }
 
@@ -284,15 +404,27 @@ class AppState extends ChangeNotifier {
   Future<void> loadServers() async {
     final api = coreProcess.api;
     if (api == null) return;
+    List<DisplayServer> mapList(List<Map<String, dynamic>> raw) => raw.map((item) {
+          final key = item['key'] as String? ?? item['id'] as String? ?? '';
+          final label = item['label'] as String? ?? item['name'] as String? ?? '';
+          final ping = item['ping_ms'] as int? ?? -1;
+          return DisplayServer.fromOption(key, label, pingMs: ping);
+        }).toList();
     try {
-      final list = await api.fetchServers(coreId);
-      servers = list.map((item) {
-        final key = item['key'] as String? ?? item['id'] as String? ?? '';
-        final label = item['label'] as String? ?? item['name'] as String? ?? '';
-        final ping = item['ping_ms'] as int? ?? -1;
-        return DisplayServer.fromOption(key, label, pingMs: ping);
-      }).toList();
+      final list = await api.fetchServers();
+      servers = mapList(list);
       notifyListeners();
+      if (servers.isEmpty) {
+        // The core fetches the list from Mozilla on first use; if that
+        // fetch was still running, the list is cached by now — retry once.
+        await Future.delayed(const Duration(seconds: 5));
+        if (servers.isNotEmpty) return;
+        final retry = await api.fetchServers();
+        if (retry.isNotEmpty) {
+          servers = mapList(retry);
+          notifyListeners();
+        }
+      }
     } catch (_) {}
   }
 
@@ -322,6 +454,7 @@ class AppState extends ChangeNotifier {
     Prefs.setServer('firefox', key, label);
     _updateRouteInfo();
     notifyListeners();
+    _pushLocation(key);
   }
 
   void addLog(String level, String msg) {
