@@ -65,7 +65,7 @@ class CoreProcess {
       try {
         final proc = await Process.start(
           exe,
-          ['-app', '-data', dataDir],
+          ['-app', '-data-dir', dataDir],
           mode: ProcessStartMode.normal,
         );
         _process = proc;
