@@ -5,6 +5,7 @@ import 'core_process.dart';
 import 'github_updates.dart';
 import 'models.dart';
 import 'prefs.dart';
+import 'tun_service.dart';
 
 enum VpnStatus { idle, connecting, connected, disconnecting, failed }
 
@@ -224,6 +225,34 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// Installs the TUN service when VPN mode needs it and it is not
+  /// installed yet. The install command asks for administrator rights
+  /// itself (one Windows UAC prompt). Throws when the user declines the
+  /// prompt or the install fails, so the connect fails honestly instead
+  /// of showing "Connected" with a dead TUN. No-op when TUN is
+  /// unsupported here (the mode push falls back to the system proxy).
+  Future<void> _ensureTunService() async {
+    final api = coreProcess.api;
+    if (api == null) return;
+    final st = await api.status();
+    if (!st.tunSupported || st.tunInstalled) return;
+    statusLabel = 'Installing TUN service…';
+    notifyListeners();
+    addLog('VPN',
+        'Installing the TUN service (Windows will ask for administrator approval)…');
+    final tun = TunService.besideCore(CoreProcess.executablePath);
+    final result = await tun.install();
+    switch (result) {
+      case TunServiceDone():
+        addLog('VPN', 'TUN service installed.');
+      case TunServiceCancelled():
+        throw Exception(
+            'TUN service install declined — allow the administrator prompt, or switch to PROXY mode.');
+      case TunServiceFailed(:final error):
+        throw Exception('Could not install the TUN service: $error');
+    }
+  }
+
   /// VPN -> system_proxy.mode "tun", PROXY -> "set". The core no-ops when
   /// the mode is unchanged; TUN 400s when unavailable here, and then the
   /// app falls back to the system proxy instead of leaving no route.
@@ -312,6 +341,17 @@ class AppState extends ChangeNotifier {
     }
 
     try {
+      // VPN mode needs the TUN service installed first — the daemon's
+      // own TunStatus comment says it: "the app installs it before it
+      // turns the TUN mode on". Without it the core's tunSync dials a
+      // service that does not exist (TunCodeMissing, retried silently)
+      // and VPN mode shows "Connected" with no traffic routed at all.
+      // The install asks for administrator rights itself (one UAC
+      // prompt); declining it leaves PROXY mode as the way to connect.
+      if (isVpnMode) {
+        await _ensureTunService();
+      }
+
       // Sync core/mode/location into the daemon (compare-first, so a
       // connect does not restart the engine for settings already set).
       await _pushCore(coreId);
@@ -351,25 +391,60 @@ class AppState extends ChangeNotifier {
             : 'Connection timed out');
       }
 
-      // Verify reachability (YouTube + Facebook)
+      // Verify reachability (YouTube + Facebook). A failed check used to
+      // still report "Connected" — the fake connect. Never again: retry
+      // once (the first probe can race the engine waking up), then fail
+      // honestly with the traffic check as the reason.
       statusLabel = 'Verifying tunnel traffic…';
       notifyListeners();
 
-      final reachOk = await api.verifyReachability();
-      if (reachOk) {
-        status = VpnStatus.connected;
-        statusLabel = 'Connected & Protected';
-        _connectedAt = DateTime.now();
-        addLog('VPN', 'Tunnel connected. Reachability verification passed.');
-        _updateRouteInfo();
-        checkUpdates();
-      } else {
-        // Retry or fallback
-        status = VpnStatus.connected;
-        statusLabel = 'Connected';
-        _connectedAt = DateTime.now();
-        addLog('VPN', 'Tunnel connected.');
+      var reachOk = await api.verifyReachability();
+      if (!reachOk) {
+        addLog('Warn', 'Traffic check failed — retrying once…');
+        await Future.delayed(const Duration(seconds: 2));
+        if (status != VpnStatus.connecting) return;
+        reachOk = await api.verifyReachability();
       }
+      if (!reachOk) {
+        throw Exception(
+            'Tunnel is up but carries no traffic — the traffic check failed');
+      }
+
+      // In VPN mode the user's traffic goes through the TUN adapter, not
+      // the SOCKS proxy the reachability probe used. Wait until the core
+      // reports the TUN on; a TUN error fails the connect with the
+      // core's own reason (missing service, no driver, busy adapter).
+      // Gated on the CORE's mode: when TUN is unavailable _pushMode falls
+      // back to the system proxy, and there is no TUN to wait for.
+      final modeCheck = await api.status();
+      if (modeCheck.mode == 'vpn') {
+        statusLabel = 'Waiting for TUN…';
+        notifyListeners();
+        final tunDeadline =
+            DateTime.now().add(const Duration(seconds: 30));
+        while (DateTime.now().isBefore(tunDeadline)) {
+          final tst = await api.status();
+          if (tst.tunState == 'on') break;
+          if (tst.tunState == 'error') {
+            throw Exception(tst.tunError ?? 'TUN failed to start');
+          }
+          if (status != VpnStatus.connecting) return;
+          await Future.delayed(const Duration(seconds: 1));
+        }
+        final tst = await api.status();
+        if (tst.tunState != 'on') {
+          throw Exception(tst.tunState == 'error'
+              ? (tst.tunError ?? 'TUN failed to start')
+              : 'TUN did not come up in time');
+        }
+      }
+
+      status = VpnStatus.connected;
+      statusLabel = 'Connected & Protected';
+      _connectedAt = DateTime.now();
+      addLog('VPN', 'Tunnel connected. Reachability verification passed.');
+      _updateRouteInfo();
+      checkUpdates();
     } catch (e) {
       status = VpnStatus.failed;
       statusLabel = 'Connection Failed';

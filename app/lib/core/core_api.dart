@@ -20,9 +20,14 @@ class CoreEndpoint {
 /// returns {state{phase,message,code}, proxy{country_name,started_at,
 /// sleeping_since}, exit{ipv4,country_name,latency_ms}, traffic{up,down},
 /// connect_pending, connect_failure, selection, selection_name,
-/// system_proxy}. Phases: starting / running / waiting / error / off.
+/// system_proxy, tun_supported, tun{state,code,message,installed}}.
+/// Phases: starting / running / waiting / error / off.
 /// Connected, the way the core's own tray reads it (TrayStatus.Summary):
 /// phase == "running" (sleeping counts — the tunnel wakes on traffic).
+/// But running alone is NOT a working VPN: the engine starts asleep and
+/// only contacts Mozilla on first use, and in VPN mode the user's traffic
+/// goes through the TUN adapter, whose state is tun.state (off/starting/
+/// on/error) — the app must wait for "on" before reporting connected.
 class CoreStatus {
   final String phase; // starting | running | waiting | error | off
   final String phaseMessage; // the core's English message
@@ -43,6 +48,17 @@ class CoreStatus {
   final int txBytes; // traffic.up
   final int uptimeSec; // seconds since proxy.started_at
   final String? error; // friendly failure, or the phase message
+  // TUN mode (StatusView.tun; null when TUN is unsupported here).
+  // The app MUST read this in VPN mode: phase == running only means the
+  // engine is up, and reachability only proves the SOCKS tunnel carries
+  // traffic — neither says the TUN adapter (which carries the user's
+  // traffic in VPN mode) is up. v1.5.20 ignored it and showed
+  // "Connected & Protected" with a dead TUN.
+  final String tunState; // off | starting | on | error | '' (unsupported)
+  final String tunCode; // TunCode*: missing, not_running, no_driver, ...
+  final String tunMessage; // the reason in English
+  final bool tunInstalled; // the TUN service is installed
+  final bool tunSupported; // mode can be "tun" here
 
   CoreStatus({
     required this.phase,
@@ -64,7 +80,30 @@ class CoreStatus {
     required this.txBytes,
     required this.uptimeSec,
     this.error,
+    this.tunState = '',
+    this.tunCode = '',
+    this.tunMessage = '',
+    this.tunInstalled = false,
+    this.tunSupported = false,
   });
+
+  /// Friendly wording for a TUN failure (internal/service/tun.go
+  /// TunCode*), with the core's own message when it says more.
+  String? get tunError {
+    if (tunState != 'error' && tunCode.isEmpty) return null;
+    final base = switch (tunCode) {
+      'missing' => 'The TUN service is not installed',
+      'not_running' => 'The TUN service is installed but not running',
+      'outdated' => 'The TUN service is older than this app and could not update',
+      'app_outdated' => 'The TUN service is newer than this app',
+      'no_driver' => 'No TUN driver — the Wintun driver is missing',
+      'busy' => 'The TUN adapter is busy — another VPN may be using it',
+      'failed' => 'The TUN adapter failed to start',
+      _ => tunCode.isEmpty ? 'TUN failed to start' : tunCode,
+    };
+    if (tunMessage.isEmpty || tunMessage == base) return base;
+    return '$base ($tunMessage)';
+  }
 
   /// Friendly wording for the core's proxy.Failure* codes
   /// (internal/proxy/failure.go). Unknown codes pass through as-is.
@@ -104,6 +143,7 @@ class CoreStatus {
     final proxy = json['proxy'] as Map<String, dynamic>? ?? const {};
     final exit = json['exit'] as Map<String, dynamic>? ?? const {};
     final traffic = json['traffic'] as Map<String, dynamic>? ?? const {};
+    final tun = json['tun'] as Map<String, dynamic>? ?? const {};
 
     final phase = (state['phase'] as String? ?? '').toLowerCase();
     final phaseMessage = state['message'] as String? ?? '';
@@ -157,6 +197,11 @@ class CoreStatus {
       txBytes: (traffic['up'] as num?)?.toInt() ?? 0,
       uptimeSec: uptimeSec,
       error: error,
+      tunState: (tun['state'] as String? ?? '').toLowerCase(),
+      tunCode: tun['code'] as String? ?? '',
+      tunMessage: tun['message'] as String? ?? '',
+      tunInstalled: tun['installed'] as bool? ?? false,
+      tunSupported: json['tun_supported'] as bool? ?? false,
     );
   }
 }
