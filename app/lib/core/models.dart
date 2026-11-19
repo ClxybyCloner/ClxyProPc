@@ -66,11 +66,13 @@ class UpdateInfo {
   final String version;
   final String url;
   final String changelog;
+  final String downloadUrl;
 
   UpdateInfo({
     required this.version,
     required this.url,
     required this.changelog,
+    required this.downloadUrl,
   });
 }
 

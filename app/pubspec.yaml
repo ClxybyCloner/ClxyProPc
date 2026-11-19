@@ -16,6 +16,7 @@ dependencies:
   intl: any
   http: ^1.2.0
   crypto: ^3.0.3
+  archive: ^3.4.0
 
 dev_dependencies:
   flutter_test:

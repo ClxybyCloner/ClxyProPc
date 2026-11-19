@@ -12,6 +12,7 @@ import '../core/app_state.dart';
 import '../core/prefs.dart';
 import '../theme/clxy_colors.dart';
 import 'quantum_serial_dialog.dart';
+import 'update_dialog.dart';
 
 class HomeScreen extends StatelessWidget {
   final AppState state;
@@ -97,7 +98,14 @@ class HomeScreen extends StatelessWidget {
 
               // New version banner
               if (state.update != null) ...[
-                _buildUpdateBanner(context, state.update!.version),
+                MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    onTap: () =>
+                        showUpdateDialog(context, state, state.update!),
+                    child: _buildUpdateBanner(context, state.update!.version),
+                  ),
+                ),
                 SizedBox(height: sectionGap),
               ],
 

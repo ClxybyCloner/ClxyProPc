@@ -29,12 +29,14 @@ class GithubUpdates {
         final tag = (data['tag_name'] as String? ?? '').replaceFirst('v', '').trim();
         final body = data['body'] as String? ?? '';
         final htmlUrl = data['html_url'] as String? ?? '';
+        final downloadUrl = _windowsZipUrl(data, tag);
 
         if (_isNewer(tag, currentVersion)) {
           _cachedUpdate = UpdateInfo(
             version: tag,
             url: htmlUrl,
             changelog: body,
+            downloadUrl: downloadUrl,
           );
           return _cachedUpdate;
         }
@@ -42,6 +44,22 @@ class GithubUpdates {
     } catch (_) {}
     _cachedUpdate = null;
     return null;
+  }
+
+  /// The portable zip asset of the release, falling back to the standard
+  /// release-download URL when the API response lists no matching asset.
+  static String _windowsZipUrl(Map<String, dynamic> data, String tag) {
+    final assets = data['assets'];
+    if (assets is List) {
+      for (final a in assets) {
+        if (a is Map<String, dynamic>) {
+          final name = a['name'] as String? ?? '';
+          final url = a['browser_download_url'] as String? ?? '';
+          if (name.endsWith('-Windows-x64.zip') && url.isNotEmpty) return url;
+        }
+      }
+    }
+    return 'https://github.com/$repoOwner/$repoName/releases/download/v$tag/ClxyPro-$tag-Windows-x64.zip';
   }
 
   static bool _isNewer(String latest, String current) {

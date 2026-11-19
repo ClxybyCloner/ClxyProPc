@@ -6,6 +6,7 @@ import '../core/prefs.dart';
 import '../theme/clxy_colors.dart';
 import 'logs_screen.dart';
 import 'split_tunnel_picker.dart';
+import 'update_dialog.dart';
 
 class ProfileScreen extends StatefulWidget {
   final AppState state;
@@ -354,9 +355,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             await widget.state.checkUpdates(force: true);
             if (!mounted) return;
             if (widget.state.update != null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Update v${widget.state.update!.version} available!')),
-              );
+              showUpdateDialog(context, widget.state, widget.state.update!);
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('ClxyPro is up to date.')),
