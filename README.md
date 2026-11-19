@@ -5,8 +5,8 @@
 ClxyPro for Windows is a high-performance, completely portable VPN and Proxy client designed for Windows 10 and 11 (x64). It faithfully replicates every screen, color, animation, flow, and behavior from the Android edition, featuring dual-core acceleration, quantum serial authentication, and zero-relay direct paths.
 
 [![Build Windows Portable](https://github.com/ClxybyCloner/ClxyProPc/actions/workflows/build.yml/badge.svg)](https://github.com/ClxybyCloner/ClxyProPc/actions/workflows/build.yml)
-[![Latest Release](https://img.shields.io/github/v/release/ClxybyCloner/ClxyProPc?color=blue&label=Release)](https://github.com/ClxybyCloner/ClxyProPc/releases/tag/v1.5.15)
-[![Download Zip](https://img.shields.io/badge/Download-Portable%20Zip%20(v1.5.15)-success?logo=windows)](https://github.com/ClxybyCloner/ClxyProPc/releases/download/v1.5.15/ClxyPro-1.5.15-Windows-x64.zip)
+[![Latest Release](https://img.shields.io/github/v/release/ClxybyCloner/ClxyProPc?color=blue&label=Release)](https://github.com/ClxybyCloner/ClxyProPc/releases/tag/v1.5.16)
+[![Download Zip](https://img.shields.io/badge/Download-Portable%20Zip%20(v1.5.16)-success?logo=windows)](https://github.com/ClxybyCloner/ClxyProPc/releases/download/v1.5.16/ClxyPro-1.5.16-Windows-x64.zip)
 
 ---
 
@@ -82,7 +82,7 @@ The script will:
 1. Build the Flutter Windows desktop application in release mode.
 2. Compile `clxy-vpn-core.exe` and `clxy-vpn-tun.exe` with symbol stripping and trimpath.
 3. Assemble the portable package folder.
-4. Generate the compressed release archive: `dist/ClxyPro-1.5.15-Windows-x64.zip`.
+4. Generate the compressed release archive: `dist/ClxyPro-1.5.16-Windows-x64.zip`.
 
 ---
 
@@ -92,7 +92,7 @@ Every commit to `main` and tag `v*` triggers the GitHub Actions workflow (`.gith
 - Runs on `windows-latest`
 - Builds the portable zip archive
 - Attaches artifacts to workflow runs
-- Publishes rolling pre-releases on `latest` and formal GitHub Releases on version tags (`v1.5.15`)
+- Publishes rolling pre-releases on `latest` and formal GitHub Releases on version tags (`v1.5.16`)
 
 ---
 
