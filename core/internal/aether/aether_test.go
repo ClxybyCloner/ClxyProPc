@@ -104,13 +104,21 @@ func TestStartServingAndPeer(t *testing.T) {
 	if got := p.DiscoveredPeer(); got != "203.0.113.7:443" {
 		t.Fatalf("DiscoveredPeer = %q, want 203.0.113.7:443", got)
 	}
-	// The peer is cached for the next run's fast reconnect.
-	raw, err := os.ReadFile(peerFile)
-	if err != nil {
-		t.Fatalf("peer file not written: %v", err)
-	}
-	if strings.TrimSpace(string(raw)) != "203.0.113.7:443" {
-		t.Fatalf("peer file = %q, want 203.0.113.7:443", raw)
+	// The peer is cached for the next run's fast reconnect. Poll the
+	// file: the pump writes it from its own goroutine, and a read
+	// racing the write sees an empty file.
+	raw := []byte(nil)
+	fileDeadline := time.Now().Add(2 * time.Second)
+	for {
+		var err error
+		raw, err = os.ReadFile(peerFile)
+		if err == nil && strings.TrimSpace(string(raw)) == "203.0.113.7:443" {
+			break
+		}
+		if time.Now().After(fileDeadline) {
+			t.Fatalf("peer file = %q, want 203.0.113.7:443", raw)
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
 	if state, _ := p.State(); state != "serving" {
 		t.Fatalf("State = %q, want serving", state)

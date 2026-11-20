@@ -158,6 +158,9 @@ func (p *Process) Start(ctx context.Context, useH3 bool, cachedPeer string) erro
 	runCtx, cancel := context.WithCancel(ctx)
 	cmd := exec.CommandContext(runCtx, exePath, args...)
 	cmd.Dir = p.workDir
+	// On Windows the sidecar runs without a console window (see
+	// hide_windows.go): without it every scan pops a black window.
+	hideConsole(cmd)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		cancel()
@@ -208,10 +211,13 @@ func (p *Process) pumpLogs(stdout io.Reader) {
 		}
 		if match := peerRegex.FindString(line); match != "" {
 			if !strings.HasPrefix(match, "127.0.0.1") && !strings.HasPrefix(match, "0.0.0.0") {
+				// Persist first, then publish: DiscoveredPeer
+				// non-empty means the peer is already cached
+				// for the next run's fast reconnect.
+				p.savePeer(match)
 				p.mu.Lock()
 				p.discoveredPeer = match
 				p.mu.Unlock()
-				p.savePeer(match)
 			}
 		}
 	}
