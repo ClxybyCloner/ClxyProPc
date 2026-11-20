@@ -305,24 +305,16 @@ class AppState extends ChangeNotifier {
   Future<void> connect({
     required Future<bool> Function() onNeedQuantumSerial,
   }) async {
-    // Quantum has no Windows engine yet: the core's aether package is
-    // unwired dead code and the release ships no aether.exe (Android's
-    // binary is an ARM .so). Refuse honestly instead of silently
-    // connecting through the Firefox engine under the Quantum label.
-    if (isQuantum) {
-      if (!Prefs.quantumUnlocked) {
-        final unlocked = await onNeedQuantumSerial();
-        if (!unlocked) {
-          return;
-        }
+    // Quantum keeps its serial gate: the first Quantum connect asks for
+    // a serial (QuantumSerial), and only an unlocked app may connect.
+    // The engine itself is the aether sidecar now (v1.5.22): the daemon
+    // scans for a relay in the background, and the connect below waits
+    // for it to serve before probing traffic.
+    if (isQuantum && !Prefs.quantumUnlocked) {
+      final unlocked = await onNeedQuantumSerial();
+      if (!unlocked) {
+        return;
       }
-      status = VpnStatus.failed;
-      statusLabel = 'Quantum unavailable';
-      errorMessage =
-          'The Quantum (Aether) engine has no Windows build yet — it needs aether.exe. Switch to Hyper to connect.';
-      addLog('Error', 'Quantum connect refused: no Windows aether engine.');
-      notifyListeners();
-      return;
     }
 
     status = VpnStatus.connecting;
@@ -354,9 +346,12 @@ class AppState extends ChangeNotifier {
 
       // Sync core/mode/location into the daemon (compare-first, so a
       // connect does not restart the engine for settings already set).
+      // Quantum picks its own relay (anycast): no location to push.
       await _pushCore(coreId);
       await _pushMode(mode);
-      await _pushLocation(Prefs.server('firefox'));
+      if (isHyper) {
+        await _pushLocation(Prefs.server('firefox'));
+      }
 
       // Power on: the call returns at once; the connect runs async in
       // the core with a 1-minute retry window.
@@ -389,6 +384,56 @@ class AppState extends ChangeNotifier {
         throw Exception(lastMessage.isNotEmpty
             ? 'Connection timed out ($lastMessage)'
             : 'Connection timed out');
+      }
+
+      // Quantum: phase == running only means the engine is up — the
+      // aether sidecar still scans for a relay in the background, and
+      // the reachability probe's 6s deadline is far too short for a
+      // scan. Wait for the sidecar to serve first (up to 180s: the
+      // core's whole scan is 162s). An error fails the connect with
+      // the sidecar's own reason; the last reason is kept, because a
+      // failed connect turns the proxy off and the aether field leaves
+      // the status with the engine.
+      if (isQuantum) {
+        statusLabel = 'Scanning for Quantum relays…';
+        notifyListeners();
+        final aetherDeadline =
+            DateTime.now().add(const Duration(seconds: 180));
+        String lastAetherError = '';
+        while (DateTime.now().isBefore(aetherDeadline)) {
+          final ast = await api.status();
+          if (ast.aetherState == 'serving') break;
+          if (ast.aetherState == 'error') {
+            throw Exception(ast.aetherMessage.isNotEmpty
+                ? 'Quantum failed: ${ast.aetherMessage}'
+                : 'Quantum failed');
+          }
+          if (ast.aetherMessage.isNotEmpty) {
+            lastAetherError = ast.aetherMessage;
+            if (statusLabel != ast.aetherMessage) {
+              statusLabel = ast.aetherMessage;
+              notifyListeners();
+            }
+          }
+          if (!ast.connected) {
+            throw Exception(lastAetherError.isNotEmpty
+                ? 'Quantum failed: $lastAetherError'
+                : 'Connection failed');
+          }
+          if (ast.connectFailure.isNotEmpty && !ast.connectPending) {
+            throw Exception(lastAetherError.isNotEmpty
+                ? 'Quantum failed: $lastAetherError'
+                : (ast.error ?? 'Connection failed'));
+          }
+          await Future.delayed(const Duration(seconds: 1));
+          if (status != VpnStatus.connecting) return;
+        }
+        final ast = await api.status();
+        if (ast.aetherState != 'serving') {
+          throw Exception(lastAetherError.isNotEmpty
+              ? 'Quantum timed out ($lastAetherError)'
+              : 'Quantum timed out — no working relay found');
+        }
       }
 
       // Verify reachability (YouTube + Facebook). A failed check used to

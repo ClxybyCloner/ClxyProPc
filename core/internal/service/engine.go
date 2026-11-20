@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/ClxybyCloner/ClxyProPc/core/internal/aether"
 	"github.com/ClxybyCloner/ClxyProPc/core/internal/config"
 	"github.com/ClxybyCloner/ClxyProPc/core/internal/logx"
 	"github.com/ClxybyCloner/ClxyProPc/core/internal/proxy"
@@ -57,6 +59,13 @@ type proxyEngine struct {
 	// the first wake replaces with the real one.
 	selected        proxy.Candidate
 	selectionSource string
+	// aether is the Quantum sidecar (nil for the Firefox engine). Its
+	// supervisor runs the scan stages; aetherErr is the scan's terminal
+	// failure, guarded by aetherMu.
+	aether       *aether.Process
+	aetherCancel context.CancelFunc
+	aetherMu     sync.Mutex
+	aetherErr    error
 }
 
 // selection returns the engine's location and how it was chosen.
@@ -70,20 +79,26 @@ func (e *proxyEngine) selection() (proxy.Candidate, string) {
 // sleeps until first used; it sends nothing to Mozilla. It fails for a
 // taken listen address, with no account, or when every account waits for
 // a quota reset or a new sign-in (read from the local account state).
+// A Quantum engine needs no account: its upstream is the aether sidecar,
+// whose scan runs in the background (superviseAether) while the engine
+// already reports running.
 func (d *Daemon) startEngine() (*proxyEngine, error) {
 	cfg := d.config()
+	isAether := d.CurrentCore() == "aether"
 	// A taken listen address is reported first, whatever the accounts.
 	ln, err := listenTCP(ListenerProxy, cfg.Proxy.Listen)
 	if err != nil {
 		return nil, err
 	}
-	if d.mgr.Len() == 0 {
-		_ = ln.Close()
-		return nil, errNoAccounts
-	}
-	if _, err := d.mgr.Candidate(nil); err != nil {
-		_ = ln.Close()
-		return nil, err
+	if !isAether {
+		if d.mgr.Len() == 0 {
+			_ = ln.Close()
+			return nil, errNoAccounts
+		}
+		if _, err := d.mgr.Candidate(nil); err != nil {
+			_ = ln.Close()
+			return nil, err
+		}
 	}
 
 	engine := &proxyEngine{
@@ -104,9 +119,21 @@ func (d *Daemon) startEngine() (*proxyEngine, error) {
 	}
 	engine.selected, engine.selectionSource = d.expectedSelection(cfg)
 	engine.idle.lastUsed, engine.idle.sleeping = engine.startedAt, engine.startedAt
-	routed := proxy.NewRoutedOpener(&engineUpstream{d: d, engine: engine})
-	routed.SetRouter(d.currentRouter())
-	engine.routed = routed
+	var routed *proxy.RoutedOpener
+	if isAether {
+		engine.transport = "aether"
+		engine.aether = aether.NewProcess(d.paths.Dir, aetherPeerFile(d.paths.Dir))
+		ctx, cancel := context.WithCancel(context.Background())
+		engine.aetherCancel = cancel
+		routed = proxy.NewRoutedOpener(&aetherUpstream{engine: engine})
+		routed.SetRouter(d.currentRouter())
+		engine.routed = routed
+		go engine.superviseAether(ctx, readCachedPeer(aetherPeerFile(d.paths.Dir)))
+	} else {
+		routed = proxy.NewRoutedOpener(&engineUpstream{d: d, engine: engine})
+		routed.SetRouter(d.currentRouter())
+		engine.routed = routed
+	}
 	socks := proxy.NewSOCKSServer(routed, config.HandshakeTimeout, config.IdleTimeout, cfg.Proxy.MaxConnections)
 	socks.Auth = proxy.SOCKSCredentials(cfg.Proxy.Username, cfg.Proxy.Password)
 	socks.Notices = d.notices
@@ -125,7 +152,11 @@ func (d *Daemon) startEngine() (*proxyEngine, error) {
 	if err := proxy.WriteIdleStatus(engine.statusFile, proxy.StatusSleeping); err != nil {
 		logx.Warn("writing status file failed path=%s err=%s", engine.statusFile, logx.Err(err))
 	}
-	logx.Info("SOCKS5 proxy started listen=%s transport=%s; it connects to Mozilla when a connection needs it", ln.Addr().String(), engine.transport)
+	if isAether {
+		logx.Info("SOCKS5 proxy started listen=%s transport=aether; the Quantum sidecar scans for a relay in the background", ln.Addr().String())
+	} else {
+		logx.Info("SOCKS5 proxy started listen=%s transport=%s; it connects to Mozilla when a connection needs it", ln.Addr().String(), engine.transport)
+	}
 	return engine, nil
 }
 
@@ -433,6 +464,12 @@ func (d *Daemon) runController(engine *proxyEngine, controller *proxy.Controller
 // A wake that finishes afterwards closes its controller (runController).
 func (e *proxyEngine) stop() {
 	_ = e.listener.Close()
+	if e.aetherCancel != nil {
+		e.aetherCancel()
+	}
+	if e.aether != nil {
+		_ = e.aether.Stop()
+	}
 	e.idle.mu.Lock()
 	e.idle.stopped = true
 	c := e.controller

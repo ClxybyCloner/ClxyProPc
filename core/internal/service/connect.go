@@ -13,6 +13,11 @@ import (
 // A wake can already try more than one endpoint or transport.
 var connectWindow = time.Minute
 
+// aetherConnectWindow is the same window for the Quantum core: its scan
+// (fast reconnect + HTTP/2 + HTTP/3) takes up to 162s, so the minute that
+// bounds a Mozilla wake would give up mid-scan.
+var aetherConnectWindow = 4 * time.Minute
+
 const (
 	connectWakeLimit  = 2
 	connectPoll       = 200 * time.Millisecond
@@ -26,9 +31,14 @@ type connectAttempt struct {
 }
 
 // Connect turns the proxy on for the user of an app, and gives the connect
-// up after connectWindow unless it reaches Mozilla.
+// up after connectWindow unless it reaches Mozilla — or, for the Quantum
+// core, after aetherConnectWindow unless the sidecar serves.
 func (d *Daemon) Connect() {
-	ctx, cancel := context.WithTimeout(context.Background(), connectWindow)
+	window := connectWindow
+	if d.CurrentCore() == "aether" {
+		window = aetherConnectWindow
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), window)
 	attempt := &connectAttempt{ctx: ctx, cancel: cancel}
 	d.mu.Lock()
 	d.endConnectLocked()
@@ -78,12 +88,27 @@ func (d *Daemon) endConnectLocked() {
 
 // retryConnect drives the same wake path as client traffic. It respects
 // wakeRetryAt and shares the wake lock with any incoming client or test.
+// For a Quantum engine there is no controller to wake: the connect
+// succeeds when the sidecar serves, and fails fast when its scan ends in
+// error.
 func (d *Daemon) retryConnect(attempt *connectAttempt) {
 	ticker := time.NewTicker(connectPoll)
 	defer ticker.Stop()
 	for attempt.ctx.Err() == nil {
 		if engine := d.currentEngine(); engine != nil {
-			if _, release, err := d.useController(engine, wakeForClient); err == nil {
+			if engine.aether != nil {
+				if engine.aether.IsServing() {
+					d.markConnected(engine, attempt)
+					return
+				}
+				engine.aetherMu.Lock()
+				aetherErr := engine.aetherErr
+				engine.aetherMu.Unlock()
+				if aetherErr != nil {
+					d.failConnect(attempt, proxy.FailureOther)
+					return
+				}
+			} else if _, release, err := d.useController(engine, wakeForClient); err == nil {
 				release()
 				d.markConnected(engine, attempt)
 				return

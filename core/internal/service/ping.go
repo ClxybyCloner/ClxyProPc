@@ -33,6 +33,11 @@ func (d *Daemon) PingAll(ctx context.Context, codes []string) ([]proxy.LocationP
 		results, at := d.measureLocations(ctx, token, codes)
 		return results, at, nil
 	}
+	// Latency is measured through Mozilla's proxy: a Quantum engine has
+	// no pass and no Mozilla session to measure with.
+	if engine.aether != nil {
+		return nil, time.Time{}, errPingNeedsProxy
+	}
 	// A real-delay test wakes a sleeping proxy and keeps it awake.
 	controller, release, err := d.useController(engine, wakeForPing)
 	if err != nil {

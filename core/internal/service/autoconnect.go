@@ -36,8 +36,12 @@ var autoConnectRetry = func(failures int) time.Duration {
 }
 
 // autoConnectProbe tests the connection through the proxy, waking it; tests
-// replace it.
+// replace it. For a Quantum engine there is no Mozilla connection to test:
+// the probe passes once the sidecar serves.
 var autoConnectProbe = func(d *Daemon) bool {
+	if engine := d.currentEngine(); engine != nil && engine.aether != nil {
+		return engine.aether.IsServing()
+	}
 	result, err := d.ConnectionTest()
 	return err == nil && result.OK
 }

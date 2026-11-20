@@ -164,6 +164,11 @@ type StatusView struct {
 	// core on Windows); Tun is then the TUN mode's state.
 	TunSupported bool       `json:"tun_supported,omitempty"`
 	Tun          *TunStatus `json:"tun,omitempty"`
+	// Aether is the Quantum engine's state (nil for the Firefox engine):
+	// "starting" while it scans for a relay, "serving" once its SOCKS
+	// server accepts connections, "error" with the reason when its scan
+	// ends without one.
+	Aether *AetherStatus `json:"aether,omitempty"`
 	// Update is the desktop app's update (update.go), when this copy
 	// updates itself.
 	Update *update.Status `json:"update,omitempty"`
@@ -234,6 +239,7 @@ func (d *Daemon) StatusView() (StatusView, error) {
 	if engine != nil {
 		traffic := engine.routed.Traffic()
 		view.Traffic = &traffic
+		view.Aether = engine.aetherStatus()
 	}
 	if d.exit != nil && engine != nil {
 		view.Exit = &exitView{IPv4: d.exit.IPv4, IPv6: d.exit.IPv6, CountryCode: d.exit.CountryCode, CountryName: d.countryNameLocked(d.exit.CountryCode), City: d.exit.City, Network: d.exit.Network, ProbeHost: d.exit.ProbeHost, LatencyMS: d.exit.Latency.Milliseconds()}

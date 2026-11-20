@@ -59,6 +59,14 @@ class CoreStatus {
   final String tunMessage; // the reason in English
   final bool tunInstalled; // the TUN service is installed
   final bool tunSupported; // mode can be "tun" here
+  // Quantum engine (StatusView.aether; null for the Firefox engine).
+  // phase == running only means the engine is up; the aether sidecar
+  // scans for a relay in the background, and traffic fails until it
+  // serves. The app MUST wait for aetherState == 'serving' in Quantum
+  // mode before the reachability probe (whose 6s deadline is far too
+  // short for a relay scan).
+  final String aetherState; // starting | serving | error | '' (not Quantum)
+  final String aetherMessage; // the reason, or the scan stage
 
   CoreStatus({
     required this.phase,
@@ -85,6 +93,8 @@ class CoreStatus {
     this.tunMessage = '',
     this.tunInstalled = false,
     this.tunSupported = false,
+    this.aetherState = '',
+    this.aetherMessage = '',
   });
 
   /// Friendly wording for a TUN failure (internal/service/tun.go
@@ -144,6 +154,7 @@ class CoreStatus {
     final exit = json['exit'] as Map<String, dynamic>? ?? const {};
     final traffic = json['traffic'] as Map<String, dynamic>? ?? const {};
     final tun = json['tun'] as Map<String, dynamic>? ?? const {};
+    final aether = json['aether'] as Map<String, dynamic>? ?? const {};
 
     final phase = (state['phase'] as String? ?? '').toLowerCase();
     final phaseMessage = state['message'] as String? ?? '';
@@ -202,6 +213,8 @@ class CoreStatus {
       tunMessage: tun['message'] as String? ?? '',
       tunInstalled: tun['installed'] as bool? ?? false,
       tunSupported: json['tun_supported'] as bool? ?? false,
+      aetherState: (aether['state'] as String? ?? '').toLowerCase(),
+      aetherMessage: aether['message'] as String? ?? '',
     );
   }
 }
@@ -214,9 +227,11 @@ class CoreStatus {
 /// modes) and the server list was always empty. The real contract:
 ///
 ///   POST /api/power        {"on": true}  -> Daemon.Connect(): the app's
-///                          button; the connect runs async with a 1-minute
-///                          retry window, the call itself returns 200 at
-///                          once. {"on": false} -> Daemon.SetOn(false).
+///                          button; the connect runs async with a retry
+///                          window (1 minute for Hyper, 4 minutes for
+///                          Quantum's relay scan), the call itself
+///                          returns 200 at once. {"on": false} ->
+///                          Daemon.SetOn(false).
 ///   GET  /api/locations    -> [{code,name,city,server,recommended,ping_ms}]
 ///   POST /api/location     {"country": code | "fastest" | ""} (restarts the
 ///                          engine only when the location actually changed)

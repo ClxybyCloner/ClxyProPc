@@ -27,6 +27,15 @@ import (
 // session and reports its state here. The phone's VPN (core/mobile) comes in
 // through the same listener, from hev-socks5-tunnel.
 
+// AetherStatus is the Quantum engine's state in /api/status.
+type AetherStatus struct {
+	// State is "starting", "serving" or "error".
+	State string `json:"state"`
+	// Message is the reason in English (error state, or the scan stage
+	// while starting).
+	Message string `json:"message,omitempty"`
+}
+
 // TunStatus is the TUN mode's state in /api/status.
 type TunStatus struct {
 	// State is TunOff, TunStarting, TunOn, or TunError.
