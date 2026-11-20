@@ -2,7 +2,7 @@ name: clxy_pro
 description: "ClxyPro for Windows (Portable) - Exact Clone of Android Client"
 publish_to: 'none'
 
-version: 1.5.24+1
+version: 1.5.25+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

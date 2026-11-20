@@ -42,12 +42,14 @@ class _ServersScreenState extends State<ServersScreen> {
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
-    final activePinned = Prefs.server('firefox');
+    final isQuantum = state.isQuantum;
+    final activePinned = Prefs.server(state.coreId);
 
     final filtered = state.servers.where((s) {
       if (_query.isEmpty) return true;
       return s.title.toLowerCase().contains(_query) ||
           s.flagCode.toLowerCase().contains(_query) ||
+          s.city.toLowerCase().contains(_query) ||
           s.countryName.toLowerCase().contains(_query);
     }).toList();
 
@@ -178,13 +180,19 @@ class _ServersScreenState extends State<ServersScreen> {
             child: ListView(
               padding: const EdgeInsets.only(bottom: 24.0),
               children: [
-                // 1. Auto Route row
+                // 1. Auto row (Hyper: fastest location, Quantum: scan)
                 _buildServerCard(
                   key: '',
-                  title: 'Auto Route · Recommended',
+                  title: isQuantum
+                      ? 'Auto Scan · Recommended'
+                      : 'Auto Route · Recommended',
                   flagCode: 'REC',
-                  subtitle: 'Optimal latency and exit path selected dynamically',
-                  pingMs: 38,
+                  subtitle: isQuantum
+                      ? 'Last working relay first, then scan for a relay'
+                      : 'Optimal latency and exit path selected dynamically',
+                  // Quantum shows no ping on Auto: there is no single
+                  // relay to measure. (Hyper keeps its existing 38.)
+                  pingMs: isQuantum ? -1 : 38,
                   isSelected: activePinned.isEmpty || activePinned == 'fastest',
                   onTap: () {
                     state.selectServer('', 'Auto Route · Recommended');

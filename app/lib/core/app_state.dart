@@ -5,6 +5,7 @@ import 'core_process.dart';
 import 'github_updates.dart';
 import 'models.dart';
 import 'prefs.dart';
+import 'quantum_sub.dart';
 import 'tun_service.dart';
 
 enum VpnStatus { idle, connecting, connected, disconnecting, failed }
@@ -87,9 +88,17 @@ class AppState extends ChangeNotifier {
 
   void _updateRouteInfo() {
     if (isQuantum) {
-      destCode = 'CLXY';
-      destName = 'CLXY Anycast Mesh';
-      destIp = isConnected ? 'Direct MASQUE Route' : 'Auto Route';
+      final pinned = Prefs.server('aether');
+      final label = Prefs.serverLabel('aether');
+      if (pinned.isNotEmpty) {
+        destCode = 'CF';
+        destName = label.isNotEmpty ? label : pinned;
+        destIp = pinned;
+      } else {
+        destCode = 'CLXY';
+        destName = 'CLXY Anycast Mesh';
+        destIp = isConnected ? 'Direct MASQUE Route' : 'Auto Route';
+      }
     } else {
       final pinned = Prefs.server('firefox');
       final label = Prefs.serverLabel('firefox');
@@ -362,7 +371,13 @@ class AppState extends ChangeNotifier {
 
       // Sync core/mode/location into the daemon (compare-first, so a
       // connect does not restart the engine for settings already set).
-      // Quantum picks its own relay (anycast): no location to push.
+      // Quantum picks its own relay (anycast): no location to push —
+      // but a pinned relay from the Servers list is written to the
+      // peer file first, so the supervisor's quick-reconnect stage
+      // dials it before falling back to the scan.
+      if (isQuantum) {
+        await _applyQuantumPeer();
+      }
       await _pushCore(coreId);
       await _pushMode(mode);
       if (isHyper) {
@@ -537,7 +552,44 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Writes the pinned Quantum relay (if any) to the core's peer cache
+  /// so the next connect dials it first. Auto leaves the file alone:
+  /// the core then quick-reconnects to its last working relay, or
+  /// scans when there is none. Written at connect time because the
+  /// sidecar overwrites the file whenever a scan finds a new relay.
+  Future<void> _applyQuantumPeer() async {
+    final peer = Prefs.server('aether');
+    if (peer.isEmpty) return;
+    final file = File(
+        '${Prefs.userDataDir.path}${Platform.pathSeparator}aether-peer.txt');
+    try {
+      await file.writeAsString(peer);
+      addLog('VPN', 'Quantum relay pinned: $peer');
+    } catch (e) {
+      addLog('Warn', 'Could not pin Quantum relay: $e');
+    }
+  }
+
   Future<void> loadServers() async {
+    if (isQuantum) {
+      // Quantum relays come from the MASQUE subscription, not the
+      // core — no daemon needed. Same list shape as Hyper's servers,
+      // so the Servers screen works unchanged.
+      try {
+        final relays = await fetchQuantumRelays();
+        servers = relays
+            .map((r) => DisplayServer(
+                  key: r.endpoint,
+                  flagCode: 'CF',
+                  title: r.name,
+                  city: r.endpoint,
+                  countryName: r.name,
+                ))
+            .toList();
+        notifyListeners();
+      } catch (_) {}
+      return;
+    }
     final api = coreProcess.api;
     if (api == null) return;
     List<DisplayServer> mapList(List<Map<String, dynamic>> raw) => raw.map((item) {
@@ -569,6 +621,19 @@ class AppState extends ChangeNotifier {
     pingingAll = true;
     notifyListeners();
 
+    if (isQuantum) {
+      // Real pings: a TCP connect to each relay, all at once, each
+      // updating its row as it answers. A relay that stays blank did
+      // not answer in time.
+      await Future.wait(servers.map((srv) async {
+        srv.pingMs = await pingQuantumRelay(srv.key);
+        notifyListeners();
+      }));
+      pingingAll = false;
+      notifyListeners();
+      return;
+    }
+
     for (final srv in servers) {
       try {
         final socket = await Socket.connect(
@@ -587,6 +652,14 @@ class AppState extends ChangeNotifier {
   }
 
   void selectServer(String key, String label) {
+    if (isQuantum) {
+      // The key is the relay endpoint; it is written to the peer file
+      // at connect time (see _applyQuantumPeer). Empty key = Auto.
+      Prefs.setServer('aether', key, label);
+      _updateRouteInfo();
+      notifyListeners();
+      return;
+    }
     Prefs.setServer('firefox', key, label);
     _updateRouteInfo();
     notifyListeners();
