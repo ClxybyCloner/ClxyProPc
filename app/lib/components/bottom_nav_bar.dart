@@ -48,15 +48,16 @@ class ClxyBottomNavBar extends StatelessWidget {
               unselectedIcon: Icons.home_outlined,
               onTap: () => onSelectTab(MainTab.home),
             ),
-            if (!isQuantum) ...[
-              _buildNavItem(
-                selected: activeTab == MainTab.servers,
-                label: 'Servers',
-                activeColor: activeTint,
-                icon: Icons.public_rounded,
-                unselectedIcon: Icons.public_outlined,
-                onTap: () => onSelectTab(MainTab.servers),
-              ),
+            _buildNavItem(
+              selected: activeTab == MainTab.servers,
+              label: 'Servers',
+              activeColor: activeTint,
+              icon: Icons.public_rounded,
+              unselectedIcon: Icons.public_outlined,
+              onTap: () => onSelectTab(MainTab.servers),
+            ),
+            // Profile stays Hyper-only: Quantum has no account.
+            if (!isQuantum)
               _buildNavItem(
                 selected: activeTab == MainTab.profile,
                 label: 'Profile',
@@ -65,7 +66,6 @@ class ClxyBottomNavBar extends StatelessWidget {
                 unselectedIcon: Icons.tune_outlined,
                 onTap: () => onSelectTab(MainTab.profile),
               ),
-            ],
           ],
         ),
       ),

@@ -199,13 +199,15 @@ class HomeScreen extends StatelessWidget {
 
               SizedBox(height: sectionGap),
 
-              // Hyper Mode: Account / Quota and Selected Server Card
+              // Hyper Mode: Account / Quota card. The selected-server
+              // card is shared: Quantum shows the pinned relay (or
+              // Auto Scan) and opens the same Servers list.
               if (state.isHyper) ...[
                 _buildDataUsageCard(context),
                 SizedBox(height: sectionGap),
-                _buildSelectedServerCard(),
-                SizedBox(height: sectionGap),
               ],
+              _buildSelectedServerCard(),
+              SizedBox(height: sectionGap),
 
               // Mode selector (VPN Mode | Proxy Mode)
               ModePillGroup(

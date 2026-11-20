@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'models.dart';
 
 class GithubUpdates {
-  static const String currentVersion = '1.5.25';
+  static const String currentVersion = '1.5.26';
   static const String repoOwner = 'ClxybyCloner';
   static const String repoName = 'ClxyProPc';
 

@@ -208,7 +208,11 @@ class _MainShellState extends State<MainShell> {
         backgroundColor: Colors.transparent,
         body: SafeArea(
           child: IndexedStack(
-            index: _appState.isQuantum ? 0 : _activeTab.index,
+            // Quantum builds [Home, Servers] only — Profile is not
+            // built, so a stale profile tab clamps back to Home.
+            index: _appState.isQuantum
+                ? (_activeTab == MainTab.servers ? 1 : 0)
+                : _activeTab.index,
             children: [
               HomeScreen(
                 state: _appState,
@@ -217,13 +221,12 @@ class _MainShellState extends State<MainShell> {
                 },
                 onOpenSignIn: _openSignIn,
               ),
-              if (!_appState.isQuantum)
-                ServersScreen(
-                  state: _appState,
-                  onClose: () {
-                    setState(() => _activeTab = MainTab.home);
-                  },
-                ),
+              ServersScreen(
+                state: _appState,
+                onClose: () {
+                  setState(() => _activeTab = MainTab.home);
+                },
+              ),
               if (!_appState.isQuantum)
                 ProfileScreen(
                   state: _appState,
