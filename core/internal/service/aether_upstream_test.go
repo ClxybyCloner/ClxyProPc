@@ -5,8 +5,10 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -147,30 +149,61 @@ func TestReadCachedPeer(t *testing.T) {
 	}
 }
 
-func fakeAetherExe(t *testing.T, dir, script string) {
+func fakeAetherExe(t *testing.T, dir, mode string) {
 	t.Helper()
-	if err := os.WriteFile(filepath.Join(dir, "aether.exe"), []byte(script), 0o755); err != nil {
+	t.Setenv("FAKE_AETHER_MODE", mode)
+	src, err := os.Open(builtFakeAetherExe(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer src.Close()
+	dst, err := os.OpenFile(filepath.Join(dir, "aether.exe"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.Copy(dst, src); err != nil {
+		dst.Close()
+		t.Fatal(err)
+	}
+	if err := dst.Close(); err != nil {
 		t.Fatal(err)
 	}
 }
 
-const supervisorServingScript = `#!/bin/sh
-echo '[INFO] [+] socks5 server listening on 127.0.0.1:11819'
-sleep 30
-`
+// builtFakeAetherExe builds the aether package's fake binary once per
+// package run (a Go binary, so the tests run on Windows CI too — a
+// shell script named aether.exe does not execute there).
+var (
+	fakeAetherOnce sync.Once
+	fakeAetherPath string
+	fakeAetherErr  error
+)
 
-const supervisorExitingScript = `#!/bin/sh
-echo 'Error: registration failed' >&2
-exit 1
-`
-
-const supervisorSilentScript = `#!/bin/sh
-sleep 30
-`
+func builtFakeAetherExe(t *testing.T) string {
+	t.Helper()
+	fakeAetherOnce.Do(func() {
+		dir, err := os.MkdirTemp("", "fakeaether")
+		if err != nil {
+			fakeAetherErr = err
+			return
+		}
+		fakeAetherPath = filepath.Join(dir, "fakeaether.exe")
+		cmd := exec.Command("go", "build", "-o", fakeAetherPath, ".")
+		cmd.Dir = filepath.Join("..", "aether", "testdata", "fakeaether")
+		if _, err := cmd.CombinedOutput(); err != nil {
+			fakeAetherErr = err
+			fakeAetherPath = ""
+		}
+	})
+	if fakeAetherErr != nil {
+		t.Fatalf("building the fake aether.exe: %v", fakeAetherErr)
+	}
+	return fakeAetherPath
+}
 
 func TestSuperviseAetherServing(t *testing.T) {
 	dir := t.TempDir()
-	fakeAetherExe(t, dir, supervisorServingScript)
+	fakeAetherExe(t, dir, "serving")
 	e := &proxyEngine{aether: aether.NewProcess(dir, "")}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -186,7 +219,7 @@ func TestSuperviseAetherServing(t *testing.T) {
 
 func TestSuperviseAetherExitIsTerminal(t *testing.T) {
 	dir := t.TempDir()
-	fakeAetherExe(t, dir, supervisorExitingScript)
+	fakeAetherExe(t, dir, "exiting")
 	e := &proxyEngine{aether: aether.NewProcess(dir, "")}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -214,7 +247,7 @@ func TestSuperviseAetherTimeoutRestages(t *testing.T) {
 	defer func() { aetherH2Timeout, aetherH3Timeout = oldH2, oldH3 }()
 
 	dir := t.TempDir()
-	fakeAetherExe(t, dir, supervisorSilentScript)
+	fakeAetherExe(t, dir, "silent")
 	e := &proxyEngine{aether: aether.NewProcess(dir, "")}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

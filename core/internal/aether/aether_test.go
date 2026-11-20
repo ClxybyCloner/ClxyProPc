@@ -2,36 +2,70 @@ package aether
 
 import (
 	"context"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
 
-// fakeExe writes an executable script named aether.exe into dir.
-func fakeExe(t *testing.T, dir, script string) {
+// fakeExeOnce builds testdata/fakeaether once per package run (a Go
+// binary, so the tests run on Windows CI too — a shell script named
+// aether.exe does not execute there).
+var (
+	fakeExeOnce sync.Once
+	fakeExePath string
+	fakeExeErr  error
+)
+
+func builtFakeExe(t *testing.T) string {
 	t.Helper()
-	path := filepath.Join(dir, "aether.exe")
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+	fakeExeOnce.Do(func() {
+		dir, err := os.MkdirTemp("", "fakeaether")
+		if err != nil {
+			fakeExeErr = err
+			return
+		}
+		fakeExePath = filepath.Join(dir, "fakeaether.exe")
+		cmd := exec.Command("go", "build", "-o", fakeExePath, ".")
+		cmd.Dir = filepath.Join("testdata", "fakeaether")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			fakeExeErr = err
+			fakeExePath = ""
+			_ = out
+		}
+	})
+	if fakeExeErr != nil {
+		t.Fatalf("building the fake aether.exe: %v", fakeExeErr)
+	}
+	return fakeExePath
+}
+
+// fakeExe places the fake aether.exe into dir and selects its mode
+// (serving, exiting, silent) for this test via the environment.
+func fakeExe(t *testing.T, dir, mode string) {
+	t.Helper()
+	t.Setenv("FAKE_AETHER_MODE", mode)
+	src, err := os.Open(builtFakeExe(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer src.Close()
+	dst, err := os.OpenFile(filepath.Join(dir, "aether.exe"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.Copy(dst, src); err != nil {
+		dst.Close()
+		t.Fatal(err)
+	}
+	if err := dst.Close(); err != nil {
 		t.Fatal(err)
 	}
 }
-
-const servingScript = `#!/bin/sh
-echo '[2026-11-20T10:30:57Z INFO  aether] [+] socks5 server listening on 127.0.0.1:11819'
-echo '[2026-11-20T10:30:58Z INFO  aether] relay 203.0.113.7:443 selected'
-sleep 30
-`
-
-const exitingScript = `#!/bin/sh
-echo 'Error: registration failed' >&2
-exit 1
-`
-
-const silentScript = `#!/bin/sh
-sleep 30
-`
 
 func TestStartMissingExe(t *testing.T) {
 	dir := t.TempDir()
@@ -46,7 +80,7 @@ func TestStartMissingExe(t *testing.T) {
 
 func TestStartServingAndPeer(t *testing.T) {
 	dir := t.TempDir()
-	fakeExe(t, dir, servingScript)
+	fakeExe(t, dir, "serving")
 	peerFile := filepath.Join(dir, "aether-peer.txt")
 	p := NewProcess(dir, peerFile)
 	if err := p.Start(context.Background(), false, ""); err != nil {
@@ -85,7 +119,7 @@ func TestStartServingAndPeer(t *testing.T) {
 
 func TestExitFailsFast(t *testing.T) {
 	dir := t.TempDir()
-	fakeExe(t, dir, exitingScript)
+	fakeExe(t, dir, "exiting")
 	p := NewProcess(dir, "")
 	if err := p.Start(context.Background(), false, ""); err != nil {
 		t.Fatalf("Start: %v", err)
@@ -109,7 +143,7 @@ func TestExitFailsFast(t *testing.T) {
 
 func TestWaitServingTimeout(t *testing.T) {
 	dir := t.TempDir()
-	fakeExe(t, dir, silentScript)
+	fakeExe(t, dir, "silent")
 	p := NewProcess(dir, "")
 	if err := p.Start(context.Background(), false, ""); err != nil {
 		t.Fatalf("Start: %v", err)

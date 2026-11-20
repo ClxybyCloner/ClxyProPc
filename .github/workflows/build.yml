@@ -39,7 +39,7 @@ jobs:
       # needs live network access or Windows-only behavior.
       - name: Test Go core
         working-directory: core
-        run: go test -count=1 ./internal/config/ ./internal/service/
+        run: go test -count=1 ./internal/aether/ ./internal/config/ ./internal/service/
 
       - name: Build Windows Portable Package
         shell: pwsh
