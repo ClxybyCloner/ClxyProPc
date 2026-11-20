@@ -129,6 +129,22 @@ class AppState extends ChangeNotifier {
       final api = coreProcess.api;
       if (api == null) return;
 
+      // The connect/disconnect flows own status while they run: they
+      // set the label step by step (Connecting… → Verifying… → TUN…)
+      // and only report Connected after every check passed. If the
+      // poller flipped status to connected the moment the core's phase
+      // turned running, the UI showed "Connected & Protected" seconds
+      // too early — and the flow's `status != connecting` guards then
+      // bailed out mid-flow, leaving the label stuck on "Verifying
+      // tunnel traffic…" with the timer already running. A failed
+      // connect stays failed too: the poller must not overrule it a
+      // second later just because the core is still up.
+      if (status == VpnStatus.connecting ||
+          status == VpnStatus.disconnecting ||
+          status == VpnStatus.failed) {
+        return;
+      }
+
       try {
         final st = await api.status();
         if (st.connected && status != VpnStatus.connected) {
