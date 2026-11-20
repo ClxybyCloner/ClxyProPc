@@ -32,7 +32,7 @@ if (-not $AppVersion) {
     if ($match) {
         $AppVersion = $match.Matches[0].Groups[1].Value
     } else {
-        $AppVersion = "1.5.26"
+        $AppVersion = "1.5.27"
     }
 }
 

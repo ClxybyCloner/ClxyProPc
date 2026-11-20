@@ -25,26 +25,32 @@ const String quantumSubUrl =
 /// sub order. Only used when the sub cannot be fetched and no cache
 /// exists yet.
 const List<QuantumRelay> bundledQuantumRelays = [
-  QuantumRelay(name: 'Amir 1', endpoint: '162.159.199.2:8095'),
-  QuantumRelay(name: 'Amir 2', endpoint: '162.159.198.2:8095'),
-  QuantumRelay(name: 'Amir 3', endpoint: '[2a14:7583:f764:64::a29f:c702]:8095'),
-  QuantumRelay(name: 'Amir 4', endpoint: '[2a14:7583:f764:64::a29f:c602]:8095'),
-  QuantumRelay(name: 'Amir 5', endpoint: 'us.v6.free.bestcf.eu.cc:8095'),
-  QuantumRelay(name: 'Amir 6', endpoint: '[2606:4700:104::2]:8095'),
-  QuantumRelay(name: 'Amir 7', endpoint: '[2606:4700:103::2]:8095'),
-  QuantumRelay(name: 'Amir 10', endpoint: 'masque1.bestcf.eu.cc:443'),
-  QuantumRelay(name: 'Amir 11', endpoint: 'masque2.bestcf.eu.cc:443'),
-  QuantumRelay(name: 'Amir 14', endpoint: 'us.v6.free.bestcf.eu.cc:443'),
-  QuantumRelay(name: 'Amir 15', endpoint: '[2602:fc59:b0:64::a29f:c601]:443'),
-  QuantumRelay(name: 'Amir 16', endpoint: '162.159.198.160:443'),
-  QuantumRelay(name: 'Amir 17', endpoint: '162.159.198.245:4443'),
-  QuantumRelay(name: 'Amir 18', endpoint: '162.159.198.41:500'),
-  QuantumRelay(name: 'Amir 19', endpoint: '162.159.198.96:4443'),
-  QuantumRelay(name: 'Amir 20', endpoint: '162.159.198.171:500'),
+  QuantumRelay(name: 'ClXY 1', endpoint: '162.159.199.2:8095'),
+  QuantumRelay(name: 'ClXY 2', endpoint: '162.159.198.2:8095'),
+  QuantumRelay(name: 'ClXY 3', endpoint: '[2a14:7583:f764:64::a29f:c702]:8095'),
+  QuantumRelay(name: 'ClXY 4', endpoint: '[2a14:7583:f764:64::a29f:c602]:8095'),
+  QuantumRelay(name: 'ClXY 5', endpoint: 'us.v6.free.bestcf.eu.cc:8095'),
+  QuantumRelay(name: 'ClXY 6', endpoint: '[2606:4700:104::2]:8095'),
+  QuantumRelay(name: 'ClXY 7', endpoint: '[2606:4700:103::2]:8095'),
+  QuantumRelay(name: 'ClXY 10', endpoint: 'masque1.bestcf.eu.cc:443'),
+  QuantumRelay(name: 'ClXY 11', endpoint: 'masque2.bestcf.eu.cc:443'),
+  QuantumRelay(name: 'ClXY 14', endpoint: 'us.v6.free.bestcf.eu.cc:443'),
+  QuantumRelay(name: 'ClXY 15', endpoint: '[2602:fc59:b0:64::a29f:c601]:443'),
+  QuantumRelay(name: 'ClXY 16', endpoint: '162.159.198.160:443'),
+  QuantumRelay(name: 'ClXY 17', endpoint: '162.159.198.245:4443'),
+  QuantumRelay(name: 'ClXY 18', endpoint: '162.159.198.41:500'),
+  QuantumRelay(name: 'ClXY 19', endpoint: '162.159.198.96:4443'),
+  QuantumRelay(name: 'ClXY 20', endpoint: '162.159.198.171:500'),
 ];
 
-/// Fetches the relay list: live sub first, cached copy on failure,
-/// bundled list when nothing else exists.
+/// Re-remarks relay names for display: the sub's remarks carry their
+/// owner's name ("Amir N"); the app shows its own brand instead.
+/// Anything that is not an "Amir" remark passes through unchanged.
+String remarkRelayName(String name) {
+  if (name == 'Amir') return 'ClXY';
+  if (name.startsWith('Amir ')) return 'ClXY ${name.substring(5)}';
+  return name;
+}
 Future<List<QuantumRelay>> fetchQuantumRelays() async {
   final cache = File(
       '${Prefs.userDataDir.path}${Platform.pathSeparator}quantum-sub.txt');
@@ -110,7 +116,7 @@ List<QuantumRelay> parseQuantumSub(String raw) {
       } catch (_) {}
       if (name.isEmpty) name = endpoint;
     }
-    relays.add(QuantumRelay(name: name, endpoint: endpoint));
+    relays.add(QuantumRelay(name: remarkRelayName(name), endpoint: endpoint));
   }
   return relays;
 }

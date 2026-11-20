@@ -92,7 +92,9 @@ class AppState extends ChangeNotifier {
       final label = Prefs.serverLabel('aether');
       if (pinned.isNotEmpty) {
         destCode = 'CF';
-        destName = label.isNotEmpty ? label : pinned;
+        // A label pinned by an older version still says "Amir N";
+        // re-remark it the same way the list does.
+        destName = label.isNotEmpty ? remarkRelayName(label) : pinned;
         destIp = pinned;
       } else {
         destCode = 'CLXY';
