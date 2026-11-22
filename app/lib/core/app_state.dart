@@ -194,10 +194,10 @@ class AppState extends ChangeNotifier {
       if (lastRx > 0 && lastTx > 0) {
         final rxDiff = (rx - lastRx).clamp(0, 1000000000);
         final txDiff = (tx - lastTx).clamp(0, 1000000000);
-        final downMbps = (rxDiff * 8.0 / 1000000.0) / elapsed;
-        final upMbps = (txDiff * 8.0 / 1000000.0) / elapsed;
-        downRate = downMbps.toStringAsFixed(1).replaceAll('.', ',');
-        upRate = upMbps.toStringAsFixed(1).replaceAll('.', ',');
+        final downKBps = (rxDiff / 1024.0) / elapsed;
+        final upKBps = (txDiff / 1024.0) / elapsed;
+        downRate = downKBps.toStringAsFixed(1).replaceAll('.', ',');
+        upRate = upKBps.toStringAsFixed(1).replaceAll('.', ',');
       }
       lastRx = rx;
       lastTx = tx;

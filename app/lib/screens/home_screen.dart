@@ -390,7 +390,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(width: 3.0),
                   const Text(
-                    'Mbps',
+                    'KB/s',
                     style: TextStyle(
                       color: ClxyColors.textMuted,
                       fontSize: 10.0,
@@ -436,7 +436,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(width: 3.0),
                   const Text(
-                    'Mbps',
+                    'KB/s',
                     style: TextStyle(
                       color: ClxyColors.textMuted,
                       fontSize: 10.0,
