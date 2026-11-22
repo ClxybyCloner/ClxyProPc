@@ -43,7 +43,7 @@ The source code lives in this repository.
 ## ⚡ Why CLXY
 
 - 🌍 **The open internet, on your desktop** — unblock the sites, apps and services restricted in your region. One click and you're in.
-- 🚀 **Built for speed** — a Go-powered core with HTTP/2 and HTTP/3 (QUIC) stays fast and stable, even on flaky connections.
+- 🚀 **Built for speed** — multi-layer routing on a Go-powered core with HTTP/2 and HTTP/3 (QUIC) stays fast and stable, even on flaky connections.
 - 🔒 **Your traffic stays yours** — a real encrypted VPN tunnel for the whole device, with per-app control over what goes through CLXY.
 - 👨‍👩‍👧 **One subscription for everyone** — share your connection with nearby devices through the LAN proxy (SOCKS5 `1081`).
 - 👆 **No setup headaches** — open the app, tap connect, done.
@@ -87,11 +87,11 @@ This architecture is designed to provide a flexible, scalable, and manageable ne
 
 ## CLXY core architecture
 
-CLXY pairs a Flutter interface with a Go networking core. The core runs as a sidecar daemon beside the app. The UI uses a local bridge and loopback API to manage settings and read connection status, while the core handles network traffic.
+CLXY pairs a Flutter interface with a Go networking core. The core runs as a sidecar daemon beside the app — the client-side end of CLXY's multi-layer routing path. The UI uses a local bridge and loopback API to manage settings and read connection status, while the core handles network traffic.
 
 In VPN mode, a Wintun adapter creates a virtual TUN interface. A user-space TCP/IP stack processes packets and forwards TCP connections to the core's SOCKS5 proxy. The built-in DNS resolver maps domain names to temporary IP addresses so routing rules can still match domains. These rules choose whether to use the proxy, connect directly, or block a connection. App selection controls which apps use the VPN.
 
-The core supports HTTP/2 CONNECT over TLS and HTTP/3 CONNECT over QUIC for connections to the gateway. Proxy-only mode uses the same core without creating a device-wide VPN. The Windows VPN path handles TCP and DNS; other UDP traffic is not tunneled.
+The core connects to the gateway over HTTP/2 CONNECT (TLS) or HTTP/3 CONNECT (QUIC). From there, traffic follows CLXY's multi-layer path: VLESS → Xray Core → Linux Routing → Mozilla VPN → Internet. Proxy-only mode uses the same core without creating a device-wide VPN. The Windows VPN path handles TCP and DNS; other UDP traffic is not tunneled.
 
 ---
 
