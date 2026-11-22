@@ -52,27 +52,9 @@ The source code lives in this repository.
 
 ---
 
-## 🖥️ Windows edition — Hyper & Quantum
-
-- **Two engines, one app** — **CLXY Hyper**: Mozilla Firefox HTTP/3 MASQUE direct engine with automatic exit routing and a live server list with real pings. **CLXY Quantum**: direct anycast mesh with a serial gate, a server list of 16 relays with real TCP pings, and pin-a-relay.
-- **100% portable** — no installer. Extract anywhere (Desktop, USB drive) and run. All settings and credentials live in `user-data\` beside the executable — nothing in the registry, nothing in `%APPDATA%`.
-- **Two modes** — **VPN mode**: system-wide routing through a Wintun TUN adapter. **Proxy mode**: local SOCKS5 (`127.0.0.1:1080`) and HTTP (`127.0.0.1:8080`) proxy, with optional LAN sharing (`:1081`). No elevation needed for proxy mode.
-- **In-app updater that doesn't give up** — downloads run in the background and resume if you close the dialog; install & restart when the download is ready.
-- **Desktop integration** — system tray icon with live connection state, Connect / Disconnect from the tray, Windows toast notifications, and split tunneling (per-program bypass list).
-
----
-
-## CLXY core architecture
-
-CLXY pairs a Flutter interface with a Go networking core. The core runs as a sidecar daemon beside the app. The UI uses a local bridge and loopback API to manage settings and read connection status, while the core handles network traffic.
-
-In VPN mode, a Wintun adapter creates a virtual TUN interface. A user-space TCP/IP stack processes packets and forwards TCP connections to the core's SOCKS5 proxy. The built-in DNS resolver maps domain names to temporary IP addresses so routing rules can still match domains. These rules choose whether to use the proxy, connect directly, or block a connection. App selection controls which apps use the VPN.
-
-The core supports HTTP/2 CONNECT over TLS and HTTP/3 CONNECT over QUIC for connections to the gateway. Proxy-only mode uses the same core without creating a device-wide VPN. The Windows VPN path handles TCP and DNS; other UDP traffic is not tunneled.
-
----
-
 ## Advanced VPN Routing
+
+CLXY routes traffic through a multi-layered path — not a single VPN hop:
 
 This architecture combines Xray technology with the Mozilla VPN infrastructure to establish a multi-layered network communication path. Its primary goal is to improve traffic management flexibility, isolate network routes, and provide more precise control over inbound and outbound traffic.
 
@@ -92,6 +74,27 @@ VLESS → Xray Core → Linux Routing → Mozilla VPN → Internet
 This architecture is designed to provide a flexible, scalable, and manageable networking infrastructure.
 
 ---
+
+## 🖥️ Windows edition — Hyper & Quantum
+
+- **Two engines, one app** — **CLXY Hyper**: the Mozilla VPN egress layer of CLXY's multi-layer routing path, over HTTP/3 MASQUE with automatic exit routing and a live server list with real pings. **CLXY Quantum**: direct anycast mesh with a serial gate, a server list of 16 relays with real TCP pings, and pin-a-relay.
+- **100% portable** — no installer. Extract anywhere (Desktop, USB drive) and run. All settings and credentials live in `user-data\` beside the executable — nothing in the registry, nothing in `%APPDATA%`.
+- **Two modes** — **VPN mode**: system-wide routing through a Wintun TUN adapter. **Proxy mode**: local SOCKS5 (`127.0.0.1:1080`) and HTTP (`127.0.0.1:8080`) proxy, with optional LAN sharing (`:1081`). No elevation needed for proxy mode.
+- **In-app updater that doesn't give up** — downloads run in the background and resume if you close the dialog; install & restart when the download is ready.
+- **Desktop integration** — system tray icon with live connection state, Connect / Disconnect from the tray, Windows toast notifications, and split tunneling (per-program bypass list).
+
+---
+
+## CLXY core architecture
+
+CLXY pairs a Flutter interface with a Go networking core. The core runs as a sidecar daemon beside the app. The UI uses a local bridge and loopback API to manage settings and read connection status, while the core handles network traffic.
+
+In VPN mode, a Wintun adapter creates a virtual TUN interface. A user-space TCP/IP stack processes packets and forwards TCP connections to the core's SOCKS5 proxy. The built-in DNS resolver maps domain names to temporary IP addresses so routing rules can still match domains. These rules choose whether to use the proxy, connect directly, or block a connection. App selection controls which apps use the VPN.
+
+The core supports HTTP/2 CONNECT over TLS and HTTP/3 CONNECT over QUIC for connections to the gateway. Proxy-only mode uses the same core without creating a device-wide VPN. The Windows VPN path handles TCP and DNS; other UDP traffic is not tunneled.
+
+---
+
 
 ## Install in 60 seconds
 
