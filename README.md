@@ -117,7 +117,7 @@ Get-FileHash ClxyPro-1.5.29-Windows-x64.zip -Algorithm SHA256
 Compare the output with this expected hash:
 
 ```text
-f87428af6d440def86e9b2adf5d5e16caea36252204e69715bf225cc91285c0a  ClxyPro-1.5.29-Windows-x64.zip
+849583ce55949dda24c39427606e3695435cb5c8f950d11703524080bfeade72  ClxyPro-1.5.29-Windows-x64.zip
 ```
 
 If they match, the file is exactly what we published.
