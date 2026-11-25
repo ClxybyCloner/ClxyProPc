@@ -31,10 +31,10 @@
 
 ## ⬇️ دانلود
 
-**آخرین نسخه: 1.5.28** (۲۲ نوامبر ۲۰۲۶)
+**آخرین نسخه: 1.5.29** (۲۵ نوامبر ۲۰۲۶)
 
-- 📦 [دانلود فایل فشردهٔ ویندوز x64](https://github.com/ClxybyCloner/ClxyProPc/releases/download/v1.5.28/ClxyPro-1.5.28-Windows-x64.zip)
-- [مشاهدهٔ هش SHA-256](https://github.com/ClxybyCloner/ClxyProPc/releases/download/v1.5.28/SHA256SUMS.txt)
+- 📦 [دانلود فایل فشردهٔ ویندوز x64](https://github.com/ClxybyCloner/ClxyProPc/releases/download/v1.5.29/ClxyPro-1.5.29-Windows-x64.zip)
+- [مشاهدهٔ هش SHA-256](https://github.com/ClxybyCloner/ClxyProPc/releases/download/v1.5.29/SHA256SUMS.txt)
 - 🗂️ [مشاهده‌ی همه‌ی نسخه‌ها](https://github.com/ClxybyCloner/ClxyProPc/releases)
 
 سورس در همین ریپو است.
@@ -114,7 +114,7 @@ CLXY رابط کاربری Flutter را با یک هسته‌ی شبکه‌ی Go
 <div dir="ltr">
 
 ```powershell
-Get-FileHash ClxyPro-1.5.28-Windows-x64.zip -Algorithm SHA256
+Get-FileHash ClxyPro-1.5.29-Windows-x64.zip -Algorithm SHA256
 ```
 
 </div>
@@ -124,7 +124,7 @@ Get-FileHash ClxyPro-1.5.28-Windows-x64.zip -Algorithm SHA256
 <div dir="ltr">
 
 ```text
-f87428af6d440def86e9b2adf5d5e16caea36252204e69715bf225cc91285c0a  ClxyPro-1.5.28-Windows-x64.zip
+f87428af6d440def86e9b2adf5d5e16caea36252204e69715bf225cc91285c0a  ClxyPro-1.5.29-Windows-x64.zip
 ```
 
 </div>
@@ -145,8 +145,8 @@ CLXY به‌صورت دوره‌ای بخش **Releases** همین ریپو را 
 
 | | |
 |---|---|
-| بسته | `ClxyPro-1.5.28-Windows-x64.zip` |
-| نسخه | `1.5.28` |
+| بسته | `ClxyPro-1.5.29-Windows-x64.zip` |
+| نسخه | `1.5.29` |
 | معماری | `x64` |
 | حداقل ویندوز | 10 / 11 |
 | حجم | ۳۴ مگابایت دانلود / ۸۲ مگابایت بعد از اکسترکت |

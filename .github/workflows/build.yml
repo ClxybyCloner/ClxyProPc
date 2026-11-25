@@ -18,6 +18,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # Full history + tags: the changelog step diffs against the
+          # previous version tag.
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -53,12 +57,34 @@ jobs:
           path: dist/*.zip
           if-no-files-found: error
 
+      # generate_release_notes only emits the compare link when there
+      # are no merged PRs — the update dialog then shows no changes
+      # at all. Build the notes from this version's commit subjects.
+      - name: Build changelog
+        if: startsWith(github.ref, 'refs/tags/')
+        id: changelog
+        shell: pwsh
+        run: |
+          $tags = git tag --sort=-v:refname | Where-Object { $_ -match '^v\d+\.\d+\.\d+$' }
+          $prev = $tags | Select-Object -Skip 1 -First 1
+          if ($prev) {
+            $log = git log "$prev..HEAD" --format='- %s'
+            $compare = "https://github.com/$env:GITHUB_REPOSITORY/compare/$prev...$env:GITHUB_REF_NAME"
+          } else {
+            $log = git log --format='- %s'
+            $compare = "https://github.com/$env:GITHUB_REPOSITORY/releases/tag/$env:GITHUB_REF_NAME"
+          }
+          $body = ($log -join "`n") + "`n`n**Full Changelog**: $compare"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value 'body<<EOF'
+          Add-Content -Path $env:GITHUB_OUTPUT -Value $body
+          Add-Content -Path $env:GITHUB_OUTPUT -Value 'EOF'
+
       - name: Create GitHub Release on Tag
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*.zip
-          generate_release_notes: true
+          body: ${{ steps.changelog.outputs.body }}
           fail_on_unmatched_files: true
 
       - name: Refresh Latest Release

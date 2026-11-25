@@ -163,8 +163,14 @@ class AppState extends ChangeNotifier {
           statusLabel = 'Connected & Protected';
           _connectedAt ??= DateTime.now();
           _updateRouteInfo();
-          if (st.exit.isNotEmpty) destName = st.exit;
-          if (st.exitIp.isNotEmpty) destIp = st.exitIp;
+          // Hyper only: the core's exit is the Firefox exit node.
+          // On Quantum the destination is the pinned relay (set above
+          // by _updateRouteInfo) — the Firefox exit must never
+          // overwrite it, or a MASQUE connection shows "Germany".
+          if (!isQuantum) {
+            if (st.exit.isNotEmpty) destName = st.exit;
+            if (st.exitIp.isNotEmpty) destIp = st.exitIp;
+          }
           if (st.latencyMs > 0) latencyMs = st.latencyMs;
           notifyListeners();
         } else if (!st.connected && !st.busy && status == VpnStatus.connected) {
@@ -210,6 +216,9 @@ class AppState extends ChangeNotifier {
     coreId = newCoreId;
     Prefs.coreId = newCoreId;
     _updateRouteInfo();
+    // Drop the old engine's list at once: a slow or failed load must
+    // never leave the other engine's servers on screen.
+    servers = [];
     loadServers();
     notifyListeners();
     _pushCore(newCoreId);
@@ -573,12 +582,17 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> loadServers() async {
+    // A load started for one engine must never publish its list after
+    // the user switched to the other engine (the Quantum fetch takes
+    // seconds; a late arrival used to overwrite Hyper's list).
+    final engine = coreId;
     if (isQuantum) {
       // Quantum relays come from the MASQUE subscription, not the
       // core — no daemon needed. Same list shape as Hyper's servers,
       // so the Servers screen works unchanged.
       try {
         final relays = await fetchQuantumRelays();
+        if (coreId != engine) return;
         servers = relays
             .map((r) => DisplayServer(
                   key: r.endpoint,
@@ -602,14 +616,17 @@ class AppState extends ChangeNotifier {
         }).toList();
     try {
       final list = await api.fetchServers();
+      if (coreId != engine) return;
       servers = mapList(list);
       notifyListeners();
       if (servers.isEmpty) {
         // The core fetches the list from Mozilla on first use; if that
         // fetch was still running, the list is cached by now — retry once.
         await Future.delayed(const Duration(seconds: 5));
+        if (coreId != engine) return;
         if (servers.isNotEmpty) return;
         final retry = await api.fetchServers();
+        if (coreId != engine) return;
         if (retry.isNotEmpty) {
           servers = mapList(retry);
           notifyListeners();
@@ -623,12 +640,15 @@ class AppState extends ChangeNotifier {
     pingingAll = true;
     notifyListeners();
 
+    final engine = coreId;
     if (isQuantum) {
       // Real pings: a TCP connect to each relay, all at once, each
       // updating its row as it answers. A relay that stays blank did
       // not answer in time.
       await Future.wait(servers.map((srv) async {
-        srv.pingMs = await pingQuantumRelay(srv.key);
+        final ms = await pingQuantumRelay(srv.key);
+        if (coreId != engine) return;
+        srv.pingMs = ms;
         notifyListeners();
       }));
       pingingAll = false;
@@ -637,6 +657,7 @@ class AppState extends ChangeNotifier {
     }
 
     for (final srv in servers) {
+      if (coreId != engine) break;
       try {
         final socket = await Socket.connect(
           '127.0.0.1',
