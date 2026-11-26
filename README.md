@@ -30,10 +30,10 @@ newest build.
 
 ## ⬇️ Download
 
-**Latest: 1.5.29**, released November 25, 2026
+**Latest: 1.5.30**, released November 26, 2026
 
-- 📦 [Download the Windows x64 zip](https://github.com/ClxybyCloner/ClxyProPc/releases/download/v1.5.29/ClxyPro-1.5.29-Windows-x64.zip)
-- [View the SHA-256 checksum](https://github.com/ClxybyCloner/ClxyProPc/releases/download/v1.5.29/SHA256SUMS.txt)
+- 📦 [Download the Windows x64 zip](https://github.com/ClxybyCloner/ClxyProPc/releases/download/v1.5.30/ClxyPro-1.5.30-Windows-x64.zip)
+- [View the SHA-256 checksum](https://github.com/ClxybyCloner/ClxyProPc/releases/download/v1.5.30/SHA256SUMS.txt)
 - 🗂️ [Browse all releases](https://github.com/ClxybyCloner/ClxyProPc/releases)
 
 The source code lives in this repository.
@@ -111,13 +111,13 @@ A subscription is required to use CLXY.
 In PowerShell, calculate the zip's SHA-256:
 
 ```powershell
-Get-FileHash ClxyPro-1.5.29-Windows-x64.zip -Algorithm SHA256
+Get-FileHash ClxyPro-1.5.30-Windows-x64.zip -Algorithm SHA256
 ```
 
 Compare the output with this expected hash:
 
 ```text
-849583ce55949dda24c39427606e3695435cb5c8f950d11703524080bfeade72  ClxyPro-1.5.29-Windows-x64.zip
+849583ce55949dda24c39427606e3695435cb5c8f950d11703524080bfeade72  ClxyPro-1.5.30-Windows-x64.zip
 ```
 
 If they match, the file is exactly what we published.
@@ -136,8 +136,8 @@ confirm the restart yourself. The app never installs anything behind your back.
 
 | | |
 |---|---|
-| Package | `ClxyPro-1.5.29-Windows-x64.zip` |
-| Version | `1.5.29` |
+| Package | `ClxyPro-1.5.30-Windows-x64.zip` |
+| Version | `1.5.30` |
 | Architecture | `x64` |
 | Minimum Windows | 10 / 11 |
 | Size | 34 MB download / 82 MB extracted |

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'core_process.dart';
@@ -64,18 +65,12 @@ class AppState extends ChangeNotifier {
     coreId = Prefs.coreId;
     mode = Prefs.mode;
 
-    // Detect country code from system locale
-    try {
-      final loc = Platform.localeName;
-      if (loc.contains('_')) {
-        originCode = loc.split('_').last.toUpperCase();
-      } else if (loc.contains('-')) {
-        originCode = loc.split('-').last.toUpperCase();
-      }
-      if (originCode.length != 2) originCode = 'AUTO';
-    } catch (_) {
-      originCode = 'AUTO';
-    }
+    // The origin flag is the device's real location (its public IP),
+    // NOT the system locale: a device set to English (US) in Iran
+    // showed the US flag. Looked up once, before any tunnel is up,
+    // so it sees the real IP; fire-and-forget so a slow lookup never
+    // delays the core start.
+    _detectOriginCountry();
 
     _updateRouteInfo();
 
@@ -84,6 +79,36 @@ class AppState extends ChangeNotifier {
 
     // Check updates on startup
     checkUpdates();
+  }
+
+  /// Detects the origin country from the device's public IP via
+  /// Cloudflare's trace endpoint (`loc=IR`). Runs once at startup,
+  /// before any tunnel is up. On any failure (offline, blocked) the
+  /// origin stays 'AUTO' (generic icon) — a wrong flag is worse
+  /// than no flag, so the system locale is never used here.
+  Future<void> _detectOriginCountry() async {
+    try {
+      final client = HttpClient();
+      try {
+        final req = await client
+            .getUrl(Uri.parse('https://www.cloudflare.com/cdn-cgi/trace'))
+            .timeout(const Duration(seconds: 5));
+        final res = await req.close().timeout(const Duration(seconds: 5));
+        if (res.statusCode == 200) {
+          final body = await res.transform(utf8.decoder).join();
+          final loc = RegExp(r'^loc=([A-Za-z]{2})$', multiLine: true)
+              .firstMatch(body)
+              ?.group(1)
+              ?.toUpperCase();
+          if (loc != null && loc.length == 2) {
+            originCode = loc;
+            notifyListeners();
+          }
+        }
+      } finally {
+        client.close();
+      }
+    } catch (_) {}
   }
 
   void _updateRouteInfo() {
