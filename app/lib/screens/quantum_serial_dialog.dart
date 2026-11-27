@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../core/prefs.dart';
 import '../core/quantum_serial.dart';
 import '../theme/clxy_colors.dart';
@@ -6,11 +7,15 @@ import '../theme/clxy_colors.dart';
 class QuantumSerialDialog extends StatefulWidget {
   final VoidCallback onDismiss;
   final VoidCallback onActivated;
+  // True when Hyper asked: the matching unlock flag is set, so a Quantum
+  // unlock does not unlock Hyper and vice versa (v1.5.31).
+  final bool forHyper;
 
   const QuantumSerialDialog({
     super.key,
     required this.onDismiss,
     required this.onActivated,
+    this.forHyper = false,
   });
 
   @override
@@ -24,7 +29,11 @@ class _QuantumSerialDialogState extends State<QuantumSerialDialog> {
   void _submit() {
     final code = _controller.text.trim();
     if (QuantumSerial.isValid(code)) {
-      Prefs.quantumUnlocked = true;
+      if (widget.forHyper) {
+        Prefs.hyperUnlocked = true;
+      } else {
+        Prefs.quantumUnlocked = true;
+      }
       widget.onActivated();
     } else {
       setState(() {
@@ -65,7 +74,7 @@ class _QuantumSerialDialogState extends State<QuantumSerialDialog> {
             ),
             const SizedBox(height: 12.0),
             const Text(
-              'Quantum Serial',
+              'CLXY Serial',
               style: TextStyle(
                 fontSize: 17.0,
                 fontWeight: FontWeight.bold,
@@ -75,7 +84,7 @@ class _QuantumSerialDialogState extends State<QuantumSerialDialog> {
             ),
             const SizedBox(height: 8.0),
             const Text(
-              'Enter your Quantum serial number to activate CLXY Quantum on this device.',
+              'Enter your serial number to activate CLXY Hyper and Quantum on this device.',
               style: TextStyle(
                 fontSize: 12.0,
                 color: ClxyColors.textMuted,
@@ -87,6 +96,12 @@ class _QuantumSerialDialogState extends State<QuantumSerialDialog> {
             TextField(
               controller: _controller,
               textCapitalization: TextCapitalization.characters,
+              // 12 characters + up to 2 dashes; dashes are stripped
+              // before hashing, so XXXX-XXXX-XXXX works too.
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9-]')),
+                LengthLimitingTextInputFormatter(14),
+              ],
               style: const TextStyle(
                 color: ClxyColors.textPrimary,
                 fontSize: 14.0,
@@ -99,7 +114,7 @@ class _QuantumSerialDialogState extends State<QuantumSerialDialog> {
               },
               onSubmitted: (_) => _submit(),
               decoration: InputDecoration(
-                hintText: 'XXXXX',
+                hintText: 'XXXX-XXXX-XXXX',
                 hintStyle: TextStyle(
                   color: ClxyColors.textDim.withOpacity(0.5),
                   letterSpacing: 2.0,

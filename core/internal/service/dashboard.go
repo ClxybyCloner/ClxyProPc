@@ -238,6 +238,8 @@ func (s *dashboardServer) handler() http.Handler {
 	mux.HandleFunc("PUT /api/settings", s.handleSettingsPut)
 	mux.HandleFunc("GET /api/core", s.handleCoreGet)
 	mux.HandleFunc("POST /api/core", s.handleCoreSet)
+	mux.HandleFunc("GET /api/psiphon", s.handlePsiphonGet)
+	mux.HandleFunc("POST /api/psiphon", s.handlePsiphonSet)
 	mux.HandleFunc("GET /api/locations", s.handleLocations)
 	mux.HandleFunc("POST /api/locations/ping", s.handleLocationPing)
 	mux.HandleFunc("POST /api/location", s.handleSetLocation)

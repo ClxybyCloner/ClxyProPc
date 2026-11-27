@@ -2,21 +2,18 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
 class QuantumSerial {
+  // SHA-256 of the 12-character serials (uppercase, dashes stripped).
+  // Rotated 2026-11-27: the old 5-character serials are burned — their
+  // plaintext sat as comments next to the hashes in the public repo.
+  // No serial plaintext lives anywhere in the source.
   static const Set<String> validHashes = {
-    // A7K2M
-    '257513a9243b57cae302d1184a6f6a48278a46641a011b1983deeb867662770b',
-    // X9P4L
-    'e381e02fa08f80dc9c7145c94ac0120ef03b5e1cce674d1d0a8affaf9cdcd628',
-    // B6R8Q
-    '29f370ad23af6db549eb30fd408a0f365be5d10287973d37250d8e723ad84ea7',
-    // T3N5W
-    'b28eb80ceabba90c7ded955528cfd6fe36e8a2d2b1e7a12da16db3cb97b6196f',
-    // H2V7C
-    'f4b3839a62b6501f8bcde9b91d33c0c5419e24694d2ea454a043ef0699fdb60b',
-    // M8D4Z
-    'c319e48a33297d5ad98486b9e90b72f3b93acbe66c581af1adfd42dd98b02f1b',
-    // Q5F9J
-    '4b16347b1ff0b22346c2805e101abcf65ef11339e015997085cc73597704d6b6',
+    '2b205ae7577ae954f03890d0e7e4d4dfefdd3d45c93fcd68f08f78769f4c8b46',
+    '360ac5242559a218171410effbe784e396f4fcff5436e2d2d8006ce0454b45b5',
+    '80bcbb7c73d861f37ef825b360eeeb6c85fd6d44ba3351ef221b0e850af5540a',
+    '61dcae65d329297dffc6c5de28e38c80b341ddf1dfb466966ff74407e4f84c54',
+    '5f5cac4c5ad557746e8bd9e7571289867fe47c6a8ad6e55f89a6525ae22e0488',
+    'd8afb795806113f63292067b5b005760563f8a1675bb5b1ff8023a2e12890134',
+    'd608322903567e9ad2e4971aacdd2042a47b79908b94662cd1f1321e76cd1d08',
   };
 
   static bool isValid(String code) {

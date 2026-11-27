@@ -14,6 +14,7 @@ import (
 	"github.com/ClxybyCloner/ClxyProPc/core/internal/config"
 	"github.com/ClxybyCloner/ClxyProPc/core/internal/logx"
 	"github.com/ClxybyCloner/ClxyProPc/core/internal/proxy"
+	"github.com/ClxybyCloner/ClxyProPc/core/internal/psiphon"
 	"github.com/ClxybyCloner/ClxyProPc/core/internal/serverlist"
 )
 
@@ -66,6 +67,22 @@ type proxyEngine struct {
 	aetherCancel context.CancelFunc
 	aetherMu     sync.Mutex
 	aetherErr    error
+	// psiphon is the Psiphon exit sidecar behind Quantum (nil for the
+	// Firefox engine). psiphonEnabled/Region are the exit the app asked
+	// for, snapshotted at creation; psiphonErr is its terminal failure,
+	// guarded by psiphonMu. The exit's egress (probed through the exit
+	// SOCKS) is guarded by egressMu; egressGen bumps on every start/stop
+	// so a late probe answer cannot land in a newer session.
+	psiphon        *psiphon.Process
+	psiphonEnabled bool
+	psiphonRegion  string
+	psiphonMu      sync.Mutex
+	psiphonErr     error
+	egressMu       sync.Mutex
+	egressIP       string
+	egressPlace    string
+	egressCode     string
+	egressGen      uint64
 }
 
 // selection returns the engine's location and how it was chosen.
@@ -123,6 +140,8 @@ func (d *Daemon) startEngine() (*proxyEngine, error) {
 	if isAether {
 		engine.transport = "aether"
 		engine.aether = aether.NewProcess(d.paths.Dir, aetherPeerFile(d.paths.Dir))
+		engine.psiphon = psiphon.NewProcess(d.paths.Dir)
+		engine.psiphonEnabled, engine.psiphonRegion = d.psiphonSettings()
 		ctx, cancel := context.WithCancel(context.Background())
 		engine.aetherCancel = cancel
 		routed = proxy.NewRoutedOpener(&aetherUpstream{engine: engine})
@@ -469,6 +488,14 @@ func (e *proxyEngine) stop() {
 	}
 	if e.aether != nil {
 		_ = e.aether.Stop()
+	}
+	if e.psiphon != nil {
+		// Bump the egress generation first: a probe answer that lands
+		// after this stop belongs to the old session.
+		e.egressMu.Lock()
+		e.egressGen++
+		e.egressMu.Unlock()
+		_ = e.psiphon.Stop()
 	}
 	e.idle.mu.Lock()
 	e.idle.stopped = true

@@ -108,6 +108,11 @@ type Daemon struct {
 	// browser (RequireLocalToken).
 	tokenOnly   atomic.Bool
 	currentCore string
+	// psiphonEnabled/Region are the Psiphon exit the app asked for
+	// (region "" = auto). They live on the daemon so they survive engine
+	// restarts; each engine snapshots them at creation.
+	psiphonEnabled bool
+	psiphonRegion  string
 	routing     routingState
 	// wakeHook replaces wake in tests.
 	wakeHook func(*proxyEngine) error

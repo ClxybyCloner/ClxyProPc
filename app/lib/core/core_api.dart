@@ -67,6 +67,15 @@ class CoreStatus {
   // short for a relay scan).
   final String aetherState; // starting | serving | error | '' (not Quantum)
   final String aetherMessage; // the reason, or the scan stage
+  // Psiphon exit behind Quantum (StatusView.psiphon; absent for Hyper
+  // and while the exit is off and never ran).
+  final bool psiphonEnabled;
+  final String psiphonRegion; // '' = Fastest/auto
+  final bool psiphonRunning;
+  final String psiphonEgressIp; // the exit's public IP, probed via the exit
+  final String psiphonEgressPlace; // 'city, country' from the probe
+  final String psiphonEgressCode; // two-letter country code from the probe
+  final String psiphonError; // the exit's terminal failure, in English
 
   CoreStatus({
     required this.phase,
@@ -95,6 +104,13 @@ class CoreStatus {
     this.tunSupported = false,
     this.aetherState = '',
     this.aetherMessage = '',
+    this.psiphonEnabled = false,
+    this.psiphonRegion = '',
+    this.psiphonRunning = false,
+    this.psiphonEgressIp = '',
+    this.psiphonEgressPlace = '',
+    this.psiphonEgressCode = '',
+    this.psiphonError = '',
   });
 
   /// Friendly wording for a TUN failure (internal/service/tun.go
@@ -155,6 +171,7 @@ class CoreStatus {
     final traffic = json['traffic'] as Map<String, dynamic>? ?? const {};
     final tun = json['tun'] as Map<String, dynamic>? ?? const {};
     final aether = json['aether'] as Map<String, dynamic>? ?? const {};
+    final psiphon = json['psiphon'] as Map<String, dynamic>? ?? const {};
 
     final phase = (state['phase'] as String? ?? '').toLowerCase();
     final phaseMessage = state['message'] as String? ?? '';
@@ -215,6 +232,13 @@ class CoreStatus {
       tunSupported: json['tun_supported'] as bool? ?? false,
       aetherState: (aether['state'] as String? ?? '').toLowerCase(),
       aetherMessage: aether['message'] as String? ?? '',
+      psiphonEnabled: psiphon['enabled'] as bool? ?? false,
+      psiphonRegion: (psiphon['region'] as String? ?? '').toUpperCase(),
+      psiphonRunning: psiphon['running'] as bool? ?? false,
+      psiphonEgressIp: psiphon['egress_ip'] as String? ?? '',
+      psiphonEgressPlace: psiphon['egress_place'] as String? ?? '',
+      psiphonEgressCode: (psiphon['egress_code'] as String? ?? '').toUpperCase(),
+      psiphonError: psiphon['error'] as String? ?? '',
     );
   }
 }
@@ -295,6 +319,21 @@ class CoreApi {
         .timeout(const Duration(seconds: 6));
     if (res.statusCode != 200) {
       throw HttpException('set location returned ${res.statusCode}: ${res.body}');
+    }
+  }
+
+  /// Sends the Psiphon exit the app wants (POST /api/psiphon). The core
+  /// stores it; the engine snapshots it at creation, so it applies on
+  /// the next connect. Region '' = Fastest (auto).
+  Future<void> setPsiphon({required bool enabled, required String region}) async {
+    final url = endpoint.baseUri.replace(path: '/api/psiphon');
+    final res = await _client
+        .post(url,
+            headers: _headers,
+            body: jsonEncode({'enabled': enabled, 'region': region.toUpperCase()}))
+        .timeout(const Duration(seconds: 6));
+    if (res.statusCode != 200) {
+      throw HttpException('set psiphon returned ${res.statusCode}: ${res.body}');
     }
   }
 

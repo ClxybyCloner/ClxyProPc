@@ -7,7 +7,9 @@ import 'core/app_state.dart';
 import 'core/prefs.dart';
 import 'desktop/desktop_bridge.dart';
 import 'screens/home_screen.dart';
+import 'screens/logs_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/quantum_serial_dialog.dart';
 import 'screens/servers_screen.dart';
 import 'screens/signin_screen.dart';
 import 'theme/clxy_theme.dart';
@@ -126,7 +128,7 @@ class _MainShellState extends State<MainShell> {
                 // the window only opens when the user must do something
                 // first. The serial callback cannot fire here (readiness
                 // already checked it); it only aborts if state changed.
-                _appState.toggleConnect(onNeedQuantumSerial: () async => false);
+                _appState.toggleConnect(onNeedSerial: (_) async => false);
               } else {
                 _bridge?.show();
               }
@@ -142,12 +144,29 @@ class _MainShellState extends State<MainShell> {
   }
 
   /// True when a background connect can proceed without the user. The only
-  /// step that needs the user before connecting is the Quantum serial; this
-  /// build has no consent step, and sign-in is not a connect prerequisite
-  /// (the home button connects the same way without a session).
+  /// step that needs the user before connecting is the serial (one per
+  /// engine); this build has no consent step, and sign-in is not a
+  /// connect prerequisite (the home button connects the same way without
+  /// a session).
   bool _readyToConnect() {
     if (_appState.isQuantum && !Prefs.quantumUnlocked) return false;
+    if (_appState.isHyper && !Prefs.hyperUnlocked) return false;
     return true;
+  }
+
+  /// Shows the serial dialog (same as the home screen's prompt). Used
+  /// after sign-in: Android asks the serial at connect, after sign-in.
+  Future<bool> _promptSerial(bool forHyper) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => QuantumSerialDialog(
+        forHyper: forHyper,
+        onDismiss: () => Navigator.of(ctx).pop(false),
+        onActivated: () => Navigator.of(ctx).pop(true),
+      ),
+    );
+    return result ?? false;
   }
 
   void _updateTray() {
@@ -188,12 +207,12 @@ class _MainShellState extends State<MainShell> {
           onDone: () {
             Navigator.of(context).pop();
             setState(() {});
-            // Android connects right after sign-in (MainActivity toggle{}).
-            // Sign-in only exists in Hyper mode, so no Quantum serial is
-            // ever asked for here; the false callback mirrors the tray
-            // handler's.
+            // Android connects right after sign-in (MainActivity toggle{}):
+            // sign-in first, then the serial at connect. Sign-in only
+            // exists in Hyper mode, so the dialog here is always the
+            // Hyper one.
             if (_appState.status == VpnStatus.idle) {
-              _appState.connect(onNeedQuantumSerial: () async => false);
+              _appState.connect(onNeedSerial: _promptSerial);
             }
           },
         ),
@@ -208,11 +227,9 @@ class _MainShellState extends State<MainShell> {
         backgroundColor: Colors.transparent,
         body: SafeArea(
           child: IndexedStack(
-            // Quantum builds [Home, Servers] only — Profile is not
-            // built, so a stale profile tab clamps back to Home.
-            index: _appState.isQuantum
-                ? (_activeTab == MainTab.servers ? 1 : 0)
-                : _activeTab.index,
+            // All four tabs for both engines (v1.5.31): Profile and
+            // Logs are no longer Hyper-only (Android rc6 parity).
+            index: _activeTab.index,
             children: [
               HomeScreen(
                 state: _appState,
@@ -227,11 +244,11 @@ class _MainShellState extends State<MainShell> {
                   setState(() => _activeTab = MainTab.home);
                 },
               ),
-              if (!_appState.isQuantum)
-                ProfileScreen(
-                  state: _appState,
-                  onOpenSignIn: _openSignIn,
-                ),
+              LogsScreen(state: _appState),
+              ProfileScreen(
+                state: _appState,
+                onOpenSignIn: _openSignIn,
+              ),
             ],
           ),
         ),

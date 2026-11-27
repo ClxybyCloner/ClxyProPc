@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'core_api.dart';
 import 'core_process.dart';
 import 'github_updates.dart';
 import 'models.dart';
 import 'prefs.dart';
+import 'psiphon_exit.dart';
 import 'quantum_sub.dart';
 import 'tun_service.dart';
 
@@ -111,12 +113,37 @@ class AppState extends ChangeNotifier {
     } catch (_) {}
   }
 
+  /// Re-reads the route box from the current settings (called when the
+  /// exit toggle or region changes, so the box shows the exit at once).
+  void refreshRouteInfo() {
+    _updateRouteInfo();
+    notifyListeners();
+  }
+
   void _updateRouteInfo() {
     if (isQuantum) {
+      // Exit on: the destination is the exit, not the relay. The chosen
+      // region is the contract (its name shows); for Fastest/auto the
+      // probe's place is the fallback and lands via the poller.
+      if (Prefs.exitEnabled) {
+        final region = Prefs.exitRegion;
+        if (region.isNotEmpty) {
+          destCode = region;
+          destName = PsiphonExit.regionName(region);
+        } else {
+          destCode = 'GLOBAL';
+          destName = 'Psiphon exit · Fastest (auto)';
+        }
+        return;
+      }
       final pinned = Prefs.server('aether');
       final label = Prefs.serverLabel('aether');
       if (pinned.isNotEmpty) {
-        destCode = 'CF';
+        // 'CLXY', not 'CF': the flag widget renders any two-letter
+        // code as a real flag emoji now, and CF would be the Central
+        // African Republic. The relay is part of the CLXY mesh; the
+        // name below still says which relay it is.
+        destCode = 'CLXY';
         // A label pinned by an older version still says "Amir N";
         // re-remark it the same way the list does.
         destName = label.isNotEmpty ? remarkRelayName(label) : pinned;
@@ -206,6 +233,13 @@ class AppState extends ChangeNotifier {
           upRate = '0,0';
           _updateRouteInfo();
           notifyListeners();
+        }
+
+        // Quantum + exit: the destination is the exit. The probe
+        // answers after the connect, so this runs on every poll while
+        // connected, not just at the transition.
+        if (status == VpnStatus.connected && isQuantum && Prefs.exitEnabled) {
+          _updateExitDestination(st);
         }
 
         // Timer calculation
@@ -354,25 +388,31 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> toggleConnect({
-    required Future<bool> Function() onNeedQuantumSerial,
+    required Future<bool> Function(bool forHyper) onNeedSerial,
   }) async {
     if (status == VpnStatus.connected || status == VpnStatus.connecting) {
       await disconnect();
     } else {
-      await connect(onNeedQuantumSerial: onNeedQuantumSerial);
+      await connect(onNeedSerial: onNeedSerial);
     }
   }
 
   Future<void> connect({
-    required Future<bool> Function() onNeedQuantumSerial,
+    required Future<bool> Function(bool forHyper) onNeedSerial,
   }) async {
-    // Quantum keeps its serial gate: the first Quantum connect asks for
-    // a serial (QuantumSerial), and only an unlocked app may connect.
-    // The engine itself is the aether sidecar now (v1.5.22): the daemon
-    // scans for a relay in the background, and the connect below waits
-    // for it to serve before probing traffic.
+    // Serial gate (v1.5.31): the first connect of each engine asks for a
+    // serial (QuantumSerial), and only an unlocked engine may connect.
+    // The flags are separate: a Quantum unlock does not unlock Hyper,
+    // and vice versa. The engine itself is the aether sidecar now
+    // (v1.5.22): the daemon scans for a relay in the background, and
+    // the connect below waits for it to serve before probing traffic.
     if (isQuantum && !Prefs.quantumUnlocked) {
-      final unlocked = await onNeedQuantumSerial();
+      final unlocked = await onNeedSerial(false);
+      if (!unlocked) {
+        return;
+      }
+    } else if (isHyper && !Prefs.hyperUnlocked) {
+      final unlocked = await onNeedSerial(true);
       if (!unlocked) {
         return;
       }
@@ -413,6 +453,7 @@ class AppState extends ChangeNotifier {
       // dials it before falling back to the scan.
       if (isQuantum) {
         await _applyQuantumPeer();
+        await _applyExitRegion();
       }
       await _pushCore(coreId);
       await _pushMode(mode);
@@ -469,8 +510,22 @@ class AppState extends ChangeNotifier {
         String lastAetherError = '';
         while (DateTime.now().isBefore(aetherDeadline)) {
           final ast = await api.status();
-          if (ast.aetherState == 'serving') break;
-          if (ast.aetherState == 'error') {
+          // The exit failing is the connect failing (Android's
+          // PSIPHON_FAILED): Quantum itself connected, but the user
+          // turned the exit on and it did not come up — never report
+          // Connected with plain Quantum's Tehran IP instead.
+          if (ast.psiphonError.isNotEmpty) {
+            throw Exception(PsiphonExit.failedMessage);
+          }
+          if (ast.aetherState == 'serving') {
+            // The exit starts right after aether serves: wait for it
+            // too when it is on.
+            if (!Prefs.exitEnabled || ast.psiphonRunning) break;
+            if (statusLabel != 'Starting the Psiphon exit…') {
+              statusLabel = 'Starting the Psiphon exit…';
+              notifyListeners();
+            }
+          } else if (ast.aetherState == 'error') {
             throw Exception(ast.aetherMessage.isNotEmpty
                 ? 'Quantum failed: ${ast.aetherMessage}'
                 : 'Quantum failed');
@@ -496,10 +551,16 @@ class AppState extends ChangeNotifier {
           if (status != VpnStatus.connecting) return;
         }
         final ast = await api.status();
+        if (ast.psiphonError.isNotEmpty) {
+          throw Exception(PsiphonExit.failedMessage);
+        }
         if (ast.aetherState != 'serving') {
           throw Exception(lastAetherError.isNotEmpty
               ? 'Quantum timed out ($lastAetherError)'
               : 'Quantum timed out — no working relay found');
+        }
+        if (Prefs.exitEnabled && !ast.psiphonRunning) {
+          throw Exception(PsiphonExit.failedMessage);
         }
       }
 
@@ -593,6 +654,48 @@ class AppState extends ChangeNotifier {
   /// the core then quick-reconnects to its last working relay, or
   /// scans when there is none. Written at connect time because the
   /// sidecar overwrites the file whenever a scan finds a new relay.
+  /// Sends the Psiphon exit the app wants to the core (POST
+  /// /api/psiphon) before power-on, so the engine starts the exit with
+  /// the right region once the MASQUE stage serves. A failure here is
+  /// only logged: the core keeps its last setting, and the connect
+  /// fails later with the exit's own error if the setting never landed.
+  Future<void> _applyExitRegion() async {
+    final api = coreProcess.api;
+    if (api == null) return;
+    try {
+      await api.setPsiphon(
+        enabled: Prefs.exitEnabled,
+        region: Prefs.exitRegion,
+      );
+      if (Prefs.exitEnabled) {
+        addLog('VPN',
+            'Psiphon exit on (${Prefs.exitRegion.isEmpty ? 'Fastest' : Prefs.exitRegion})');
+      }
+    } catch (e) {
+      addLog('Warn', 'Could not set the Psiphon exit on the core: $e');
+    }
+  }
+
+  /// The exit's destination for the route box, from the core's probe.
+  /// The chosen region is the contract (its name shows); the probe's
+  /// place is only the fallback for Fastest/auto.
+  void _updateExitDestination(CoreStatus st) {
+    final region = Prefs.exitRegion;
+    if (region.isNotEmpty) {
+      destCode = region;
+      destName = PsiphonExit.regionName(region);
+    } else if (st.psiphonEgressCode.isNotEmpty) {
+      destCode = st.psiphonEgressCode;
+      destName = st.psiphonEgressPlace.isNotEmpty
+          ? st.psiphonEgressPlace
+          : 'Psiphon exit · Fastest (auto)';
+    } else {
+      destCode = 'GLOBAL';
+      destName = 'Psiphon exit · Fastest (auto)';
+    }
+    if (st.psiphonEgressIp.isNotEmpty) destIp = st.psiphonEgressIp;
+  }
+
   Future<void> _applyQuantumPeer() async {
     final peer = Prefs.server('aether');
     if (peer.isEmpty) return;

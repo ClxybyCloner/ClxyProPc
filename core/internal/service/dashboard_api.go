@@ -169,6 +169,9 @@ type StatusView struct {
 	// server accepts connections, "error" with the reason when its scan
 	// ends without one.
 	Aether *AetherStatus `json:"aether,omitempty"`
+	// Psiphon is the Psiphon exit's state behind Quantum (nil for the
+	// Firefox engine, and nil while the exit is off and never ran).
+	Psiphon *PsiphonStatus `json:"psiphon,omitempty"`
 	// Update is the desktop app's update (update.go), when this copy
 	// updates itself.
 	Update *update.Status `json:"update,omitempty"`
@@ -240,6 +243,7 @@ func (d *Daemon) StatusView() (StatusView, error) {
 		traffic := engine.routed.Traffic()
 		view.Traffic = &traffic
 		view.Aether = engine.aetherStatus()
+		view.Psiphon = engine.psiphonStatus()
 	}
 	if d.exit != nil && engine != nil {
 		view.Exit = &exitView{IPv4: d.exit.IPv4, IPv6: d.exit.IPv6, CountryCode: d.exit.CountryCode, CountryName: d.countryNameLocked(d.exit.CountryCode), City: d.exit.City, Network: d.exit.Network, ProbeHost: d.exit.ProbeHost, LatencyMS: d.exit.Latency.Milliseconds()}
@@ -972,6 +976,32 @@ func (s *dashboardServer) handleCoreSet(w http.ResponseWriter, r *http.Request) 
 	}
 	s.d.SetCore(in.Core)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "core": s.d.CurrentCore()})
+}
+
+// handlePsiphonGet reports the Psiphon exit the app asked for.
+func (s *dashboardServer) handlePsiphonGet(w http.ResponseWriter, r *http.Request) {
+	enabled, region := s.d.psiphonSettings()
+	writeJSON(w, http.StatusOK, map[string]any{"enabled": enabled, "region": region})
+}
+
+// handlePsiphonSet stores the Psiphon exit the app asked for (enabled +
+// region, "" = auto). It applies on the next connect: the engine
+// snapshots the settings at creation, and a running engine keeps the
+// exit it started with.
+func (s *dashboardServer) handlePsiphonSet(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Enabled bool   `json:"enabled"`
+		Region  string `json:"region"`
+	}
+	if !readJSON(w, r, &in) {
+		return
+	}
+	if err := s.d.setPsiphonSettings(in.Enabled, in.Region); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	enabled, region := s.d.psiphonSettings()
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "enabled": enabled, "region": region})
 }
 
 func respondResult(w http.ResponseWriter, err error) {

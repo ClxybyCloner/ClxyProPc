@@ -97,7 +97,14 @@ func (d *Daemon) retryConnect(attempt *connectAttempt) {
 	for attempt.ctx.Err() == nil {
 		if engine := d.currentEngine(); engine != nil {
 			if engine.aether != nil {
-				if engine.aether.IsServing() {
+				if err := engine.psiphonError(); err != nil {
+					d.failConnect(attempt, proxy.FailureOther)
+					return
+				}
+				// The connect completes only once the exit is up too:
+				// aether serving alone would route traffic out of the
+				// MASQUE relay before the chosen exit exists.
+				if engine.aether.IsServing() && engine.psiphonReady() {
 					d.markConnected(engine, attempt)
 					return
 				}

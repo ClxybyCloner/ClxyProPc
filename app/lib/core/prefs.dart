@@ -94,6 +94,29 @@ class Prefs {
     _save();
   }
 
+  // Hyper has its own unlock flag (v1.5.31): the same serials, but a
+  // Quantum unlock does not unlock Hyper, and vice versa. Each engine
+  // asks once, on its first connect.
+  static bool get hyperUnlocked => _data['hyperUnlocked'] as bool? ?? false;
+  static set hyperUnlocked(bool value) {
+    _data['hyperUnlocked'] = value;
+    _save();
+  }
+
+  // Psiphon exit behind Quantum (v1.5.31): on/off + the chosen egress
+  // region ('' = Fastest/auto). Applies on the next connect.
+  static bool get exitEnabled => _data['exitEnabled'] as bool? ?? false;
+  static set exitEnabled(bool value) {
+    _data['exitEnabled'] = value;
+    _save();
+  }
+
+  static String get exitRegion => _data['exitRegion'] as String? ?? '';
+  static set exitRegion(String value) {
+    _data['exitRegion'] = value;
+    _save();
+  }
+
   static String get dnsProvider => _data['dnsProvider'] as String? ?? 'cloudflare';
   static set dnsProvider(String value) {
     _data['dnsProvider'] = value;

@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'models.dart';
 
 class GithubUpdates {
-  static const String currentVersion = '1.5.30';
+  static const String currentVersion = '1.5.31';
   static const String repoOwner = 'ClxybyCloner';
   static const String repoName = 'ClxyProPc';
 
@@ -64,8 +64,14 @@ class GithubUpdates {
 
   static bool _isNewer(String latest, String current) {
     if (latest.isEmpty || current.isEmpty) return false;
-    final lParts = latest.split('.').map((e) => int.tryParse(e) ?? 0).toList();
-    final cParts = current.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    // Strip a pre-release suffix before comparing (Android rc8 lesson):
+    // '1.5.31-rc1' is 1.5.31, not 1.5.0 — int.tryParse('31-rc1') is null
+    // and used to silently zero the patch number.
+    String strip(String v) => v.split('-').first.trim();
+    final lParts =
+        strip(latest).split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final cParts =
+        strip(current).split('.').map((e) => int.tryParse(e) ?? 0).toList();
     for (int i = 0; i < 3; i++) {
       final l = i < lParts.length ? lParts[i] : 0;
       final c = i < cParts.length ? cParts[i] : 0;

@@ -8,6 +8,7 @@
 #         clxy-vpn-core.exe
 #         clxy-vpn-tun.exe
 #         aether.exe        (Quantum engine, CluvexStudio/Aether v2.4.0)
+#         psiphon.exe       (Psiphon exit sidecar, v1.5.31)
 #         LICENSES\         (aether third-party notices)
 #       README.txt
 #
@@ -32,7 +33,7 @@ if (-not $AppVersion) {
     if ($match) {
         $AppVersion = $match.Matches[0].Groups[1].Value
     } else {
-        $AppVersion = "1.5.30"
+        $AppVersion = "1.5.31"
     }
 }
 
@@ -49,7 +50,7 @@ New-Item -ItemType Directory -Force $appFolder | Out-Null
 New-Item -ItemType Directory -Force "$appFolder\core" | Out-Null
 
 # 1. Build Flutter App
-Write-Host "`n[1/5] Building Flutter Windows desktop app..." -ForegroundColor Green
+Write-Host "`n[1/6] Building Flutter Windows desktop app..." -ForegroundColor Green
 Push-Location "$root\app"
 try {
     flutter pub get
@@ -69,14 +70,14 @@ if (-not (Test-Path "$flutterRelease\ClxyPro.exe")) {
 Copy-Item "$flutterRelease\*" $appFolder -Recurse -Force
 
 # 2. Build Go Core Executables
-Write-Host "`n[2/5] Building Go core sidecar (clxy-vpn-core.exe)..." -ForegroundColor Green
+Write-Host "`n[2/6] Building Go core sidecar (clxy-vpn-core.exe)..." -ForegroundColor Green
 Push-Location "$root\core"
 try {
     $coreLdflags = "-s -w -X github.com/ClxybyCloner/ClxyProPc/core/internal/version.Current=$AppVersion"
     go build -trimpath -ldflags $coreLdflags -o "$appFolder\core\clxy-vpn-core.exe" ./cmd/clxy-vpn-core
     if ($LASTEXITCODE -ne 0) { throw "go build clxy-vpn-core failed" }
 
-    Write-Host "`n[3/5] Building Go TUN service (clxy-vpn-tun.exe)..." -ForegroundColor Green
+    Write-Host "`n[3/6] Building Go TUN service (clxy-vpn-tun.exe)..." -ForegroundColor Green
     $tunLdflags = "-s -w -H windowsgui -X github.com/ClxybyCloner/ClxyProPc/core/internal/version.Current=$AppVersion"
     go build -tags with_gvisor -trimpath -ldflags $tunLdflags -o "$appFolder\core\clxy-vpn-tun.exe" ./cmd/clxy-vpn-tun
     if ($LASTEXITCODE -ne 0) { throw "go build clxy-vpn-tun failed" }
@@ -84,13 +85,29 @@ try {
     Pop-Location
 }
 
+# 3. Build the Psiphon exit wrapper (psiphon.exe) — the Quantum exit
+# sidecar (v1.5.31). Its module is separate (clxy/psiphon, GPLv3,
+# adapted from BPB-VPN), so this builds from tools/psiphon, not from
+# core/. The core daemon starts it only when the exit is on; without
+# it, an exit connect fails with the exit's own error instead of
+# silently falling back to plain Quantum.
+Write-Host "`n[4/6] Building Psiphon exit wrapper (psiphon.exe)..." -ForegroundColor Green
+Push-Location "$root\tools\psiphon"
+try {
+    go build -trimpath -ldflags "-s -w" -o "$appFolder\core\psiphon.exe" .
+    if ($LASTEXITCODE -ne 0) { throw "go build psiphon wrapper failed" }
+} finally {
+    Pop-Location
+}
+if (-not (Test-Path "$appFolder\core\psiphon.exe")) { throw "psiphon.exe missing after build" }
+
 # 3. Fetch the Quantum engine (aether.exe) from the upstream release.
 # The build FAILS if the download or the hash check fails: a release
 # without aether.exe would refuse every Quantum connect, and a wrong
 # binary must never ship silently. Only aether.exe and the LICENSES
 # folder are kept; pt/ (lyrebird, psiphon) is for modes the core does
 # not use (--tor/--psiphon).
-Write-Host "`n[4/5] Fetching Quantum engine (aether.exe v2.4.0)..." -ForegroundColor Green
+Write-Host "`n[5/6] Fetching Quantum engine (aether.exe v2.4.0)..." -ForegroundColor Green
 $aetherUrl = "https://github.com/CluvexStudio/Aether/releases/download/v2.4.0/aether-windows-x86_64.zip"
 $aetherSha256 = "21b1444628d37121e873878e2eddd7932215418af1a2a12470caee5809026f1a"
 $aetherZip = "$dist\aether-windows-x86_64.zip"
@@ -112,7 +129,7 @@ Remove-Item -Force $aetherZip -ErrorAction SilentlyContinue
 Write-Host "Quantum engine verified and staged: core\aether.exe" -ForegroundColor Yellow
 
 # 4. Create Portable README.txt
-Write-Host "`n[5/5] Creating portable package and zip archive..." -ForegroundColor Green
+Write-Host "`n[6/6] Creating portable package and zip archive..." -ForegroundColor Green
 $readmeContent = @"
 ========================================================================
 ClxyPro for Windows (Portable) v$AppVersion

@@ -10,6 +10,7 @@ import '../components/shield_icon.dart';
 import '../components/signal_bars.dart';
 import '../core/app_state.dart';
 import '../core/prefs.dart';
+import '../core/psiphon_exit.dart';
 import '../theme/clxy_colors.dart';
 import 'quantum_serial_dialog.dart';
 import 'update_dialog.dart';
@@ -58,16 +59,315 @@ class HomeScreen extends StatelessWidget {
     return minSec;
   }
 
-  Future<bool> _promptQuantumSerial(BuildContext context) async {
+  Future<bool> _promptQuantumSerial(BuildContext context, bool forHyper) async {
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => QuantumSerialDialog(
+        forHyper: forHyper,
         onDismiss: () => Navigator.of(ctx).pop(false),
         onActivated: () => Navigator.of(ctx).pop(true),
       ),
     );
     return result ?? false;
+  }
+
+  /// Psiphon exit section (Quantum only, v1.5.31): the Change Iran Exit
+  /// toggle + the chosen region + a Guide button, then a horizontal row
+  /// of Fastest + 31 country chips. Mirrors Android's HomeScreen exit
+  /// section (rc3/rc15 layout: below the power button, above the route
+  /// box).
+  Widget _buildExitSection(BuildContext context, AppState state) {
+    final enabled = Prefs.exitEnabled;
+    final region = Prefs.exitRegion;
+    final regionLabel = region.isEmpty
+        ? PsiphonExit.autoLabel
+        : '${PsiphonExit.flag(region)} ${PsiphonExit.regionName(region)}';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            _buildExitToggle(state, enabled),
+            const SizedBox(width: 8.0),
+            Expanded(
+              child: Text(
+                region.isEmpty ? regionLabel : '$region: $regionLabel',
+                style: const TextStyle(
+                  fontSize: 12.0,
+                  color: ClxyColors.textMuted,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8.0),
+            _buildGuidePill(context),
+          ],
+        ),
+        const SizedBox(height: 6.0),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _buildExitChip(
+                state,
+                code: '',
+                label: PsiphonExit.autoLabel,
+                selected: region.isEmpty,
+              ),
+              const SizedBox(width: 6.0),
+              ...PsiphonExit.regions.entries.map((entry) {
+                final code = entry.key;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6.0),
+                  child: _buildExitChip(
+                    state,
+                    code: code,
+                    label: '${PsiphonExit.flag(code)} $code',
+                    selected: region == code,
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExitToggle(AppState state, bool enabled) {
+    return GestureDetector(
+      onTap: () {
+        Prefs.exitEnabled = !enabled;
+        state.refreshRouteInfo();
+      },
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 12.0, vertical: 7.0),
+        decoration: BoxDecoration(
+          color: enabled
+              ? ClxyColors.quantumPurple.withOpacity(0.28)
+              : ClxyColors.cardSurface,
+          borderRadius: BorderRadius.circular(999.0),
+          border: Border.all(
+            color: enabled
+                ? ClxyColors.quantumPurple.withOpacity(0.65)
+                : ClxyColors.glassBorder,
+            width: 1.0,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 8.0,
+              height: 8.0,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: enabled
+                    ? ClxyColors.quantumPurple
+                    : ClxyColors.dotInactive,
+              ),
+            ),
+            const SizedBox(width: 6.0),
+            Text(
+              'Change Iran Exit',
+              style: TextStyle(
+                fontSize: 12.0,
+                fontWeight: FontWeight.bold,
+                color: enabled
+                    ? ClxyColors.pinkAccent
+                    : ClxyColors.textMuted,
+              ),
+            ),
+            const SizedBox(width: 6.0),
+            Text(
+              enabled ? 'On' : 'Off',
+              style: TextStyle(
+                fontSize: 12.0,
+                fontWeight: FontWeight.bold,
+                color: enabled
+                    ? ClxyColors.pinkAccent
+                    : ClxyColors.textDim,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExitChip(
+    AppState state, {
+    required String code,
+    required String label,
+    required bool selected,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        Prefs.exitRegion = code;
+        state.refreshRouteInfo();
+      },
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
+        decoration: BoxDecoration(
+          color: selected
+              ? ClxyColors.quantumPurple.withOpacity(0.28)
+              : ClxyColors.cardSurface,
+          borderRadius: BorderRadius.circular(999.0),
+          border: Border.all(
+            color: selected
+                ? ClxyColors.quantumPurple.withOpacity(0.65)
+                : ClxyColors.glassBorder,
+            width: 1.0,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.0,
+            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+            color: selected
+                ? ClxyColors.pinkAccent
+                : ClxyColors.textMuted,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGuidePill(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _showExitGuide(context),
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
+        decoration: BoxDecoration(
+          color: ClxyColors.cardSurface,
+          borderRadius: BorderRadius.circular(999.0),
+          border: Border.all(color: ClxyColors.cyanBorder, width: 1.0),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.help_outline_rounded,
+                size: 14.0, color: ClxyColors.cyanText),
+            SizedBox(width: 4.0),
+            Text(
+              'Guide',
+              style: TextStyle(
+                fontSize: 12.0,
+                fontWeight: FontWeight.w600,
+                color: ClxyColors.cyanText,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// The exit Guide popup. English by default; the pill switches to
+  /// Persian, which renders right-to-left (Android rc14 lesson: mixed
+  /// Persian/English scrambled left-to-right otherwise).
+  Future<void> _showExitGuide(BuildContext context) async {
+    var showFa = false;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final title =
+              showFa ? PsiphonExit.guideTitleFa : PsiphonExit.guideTitle;
+          final body =
+              showFa ? PsiphonExit.guideBodyFa : PsiphonExit.guideBody;
+          return Directionality(
+            textDirection:
+                showFa ? TextDirection.rtl : TextDirection.ltr,
+            child: AlertDialog(
+              backgroundColor: ClxyColors.modalSurface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20.0),
+                side: BorderSide(
+                  color: ClxyColors.cyanGlow.withOpacity(0.4),
+                  width: 1.0,
+                ),
+              ),
+              contentPadding: const EdgeInsets.all(20.0),
+              titlePadding:
+                  const EdgeInsets.fromLTRB(20.0, 20.0, 20.0, 0.0),
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 17.0,
+                        fontWeight: FontWeight.bold,
+                        color: ClxyColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8.0),
+                  GestureDetector(
+                    onTap: () =>
+                        setDialogState(() => showFa = !showFa),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10.0, vertical: 5.0),
+                      decoration: BoxDecoration(
+                        color: ClxyColors.cardSurface,
+                        borderRadius: BorderRadius.circular(999.0),
+                        border: Border.all(
+                            color: ClxyColors.glassBorder, width: 1.0),
+                      ),
+                      child: Text(
+                        showFa ? 'English' : 'فارسی',
+                        style: const TextStyle(
+                          fontSize: 12.0,
+                          fontWeight: FontWeight.w600,
+                          color: ClxyColors.cyanText,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              content: Text(
+                body,
+                style: const TextStyle(
+                  fontSize: 13.0,
+                  color: ClxyColors.textMuted,
+                  height: 1.5,
+                ),
+                textAlign: showFa ? TextAlign.right : TextAlign.left,
+              ),
+              actions: [
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ClxyColors.blueDeep,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12.0)),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      showFa ? 'فهمیدم' : 'Got it',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -175,8 +475,8 @@ class HomeScreen extends StatelessWidget {
                       buttonSize: btnDiameter,
                       onTap: () {
                         state.toggleConnect(
-                          onNeedQuantumSerial: () =>
-                              _promptQuantumSerial(context),
+                          onNeedSerial: (forHyper) =>
+                              _promptQuantumSerial(context, forHyper),
                         );
                       },
                     ),
@@ -185,6 +485,14 @@ class HomeScreen extends StatelessWidget {
               ),
 
               SizedBox(height: compact ? 4.0 : 8.0),
+
+              // Quantum only: Psiphon exit (v1.5.31). Always visible when
+              // Quantum is selected — not gated on the toggle, not gated
+              // on connected. Applies on the next connect.
+              if (state.isQuantum) ...[
+                _buildExitSection(context, state),
+                SizedBox(height: compact ? 4.0 : 8.0),
+              ],
 
               // Route Tunnel Box
               RouteTunnelBox(

@@ -42,6 +42,13 @@ func (u *aetherUpstream) OpenTunnel(authority string) (net.Conn, error) {
 	if err := u.engine.aetherWait(aetherOpenTimeout); err != nil {
 		return nil, err
 	}
+	// While the Psiphon exit runs, tunnels go through its SOCKS, not
+	// aether's: the exit is the egress, MASQUE is only the transport.
+	// The DNS-over-HTTPS exchange dials through this same opener, so DNS
+	// follows the exit by TCP on its own — no mapped DNS is needed.
+	if p := u.engine.psiphon; p != nil && p.IsRunning() {
+		return dialThroughSocks(p.Addr(), authority)
+	}
 	addr := u.engine.aether.Addr()
 	if addr == "" {
 		return nil, errors.New("quantum engine has no SOCKS address")
@@ -144,6 +151,14 @@ func (e *proxyEngine) superviseAether(ctx context.Context, cachedPeer string) {
 		err := proc.WaitServing(st.budget)
 		if err == nil || proc.IsServing() {
 			logx.Info("quantum engine serving stage=%s", proc.Stage())
+			// After a MASQUE stage succeeds: bring the Psiphon exit up
+			// when it is enabled, before the engine reports ready (the
+			// Android finishConnect step). A failed exit fails this
+			// connect (retryConnect checks psiphonError) rather than
+			// silently handing the user plain Quantum's Tehran IP.
+			// The failure stays on the exit, not on aether: aether is
+			// serving.
+			_ = e.startPsiphon(ctx)
 			return
 		}
 		if proc.Terminal() {

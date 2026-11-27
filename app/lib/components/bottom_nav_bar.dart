@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/clxy_colors.dart';
 
-enum MainTab { home, servers, profile }
+enum MainTab { home, servers, logs, profile }
 
 class ClxyBottomNavBar extends StatelessWidget {
   final MainTab activeTab;
@@ -56,16 +56,25 @@ class ClxyBottomNavBar extends StatelessWidget {
               unselectedIcon: Icons.public_outlined,
               onTap: () => onSelectTab(MainTab.servers),
             ),
-            // Profile stays Hyper-only: Quantum has no account.
-            if (!isQuantum)
-              _buildNavItem(
-                selected: activeTab == MainTab.profile,
-                label: 'Profile',
-                activeColor: activeTint,
-                icon: Icons.tune_rounded,
-                unselectedIcon: Icons.tune_outlined,
-                onTap: () => onSelectTab(MainTab.profile),
-              ),
+            _buildNavItem(
+              selected: activeTab == MainTab.logs,
+              label: 'Logs',
+              activeColor: activeTint,
+              icon: Icons.terminal_rounded,
+              unselectedIcon: Icons.terminal_outlined,
+              onTap: () => onSelectTab(MainTab.logs),
+            ),
+            // Profile is for both engines now (v1.5.31, like Android
+            // rc6): Quantum has no account, but the diagnostics, logs
+            // and update check live there.
+            _buildNavItem(
+              selected: activeTab == MainTab.profile,
+              label: 'Profile',
+              activeColor: activeTint,
+              icon: Icons.tune_rounded,
+              unselectedIcon: Icons.tune_outlined,
+              onTap: () => onSelectTab(MainTab.profile),
+            ),
           ],
         ),
       ),

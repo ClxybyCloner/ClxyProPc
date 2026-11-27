@@ -1,5 +1,25 @@
 import 'package:flutter/material.dart';
 
+// Flags drawn by hand on canvas (kept: proper flags beat emoji).
+const _handDrawn = {
+  'US', 'DE', 'FR', 'GB', 'NL', 'CA', 'JP', 'IR', 'IE', 'CH', 'SE', 'FI', 'AR'
+};
+const _special = {'', 'REC', 'AUTO'};
+
+/// Any other two-letter code gets a real flag emoji (Android rc8):
+/// regional indicators, no hashed badge, no ring (rc11).
+bool _isEmojiFlag(String code) =>
+    code.length == 2 &&
+    !_special.contains(code) &&
+    !_handDrawn.contains(code) &&
+    code != 'CLXY';
+
+String _flagEmoji(String code) {
+  final first = 0x1F1E6 + (code.codeUnitAt(0) - 0x41);
+  final second = 0x1F1E6 + (code.codeUnitAt(1) - 0x41);
+  return String.fromCharCode(first) + String.fromCharCode(second);
+}
+
 class CircularCountryFlag extends StatelessWidget {
   final String countryCode;
   final double size;
@@ -13,35 +33,21 @@ class CircularCountryFlag extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final code = countryCode.trim().toUpperCase();
-    final showText = code == 'CLXY' ||
-        !const {
-          '',
-          'REC',
-          'AUTO',
-          'US',
-          'DE',
-          'FR',
-          'GB',
-          'NL',
-          'CA',
-          'JP',
-          'IR',
-          'IE',
-          'CH',
-          'SE',
-          'FI',
-          'AR'
-        }.contains(code);
+    final emoji = _isEmojiFlag(code) ? _flagEmoji(code) : '';
+    final showText = code == 'CLXY' || emoji.isNotEmpty;
 
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(
-          color: Colors.white.withOpacity(0.18),
-          width: 1.0,
-        ),
+        // No ring around an emoji flag (Android rc11).
+        border: emoji.isEmpty
+            ? Border.all(
+                color: Colors.white.withOpacity(0.18),
+                width: 1.0,
+              )
+            : null,
       ),
       child: ClipOval(
         child: Stack(
@@ -53,10 +59,15 @@ class CircularCountryFlag extends StatelessWidget {
             ),
             if (showText)
               Text(
-                code == 'CLXY' ? 'CX' : (code.length >= 2 ? code.substring(0, 2) : code),
+                emoji.isNotEmpty
+                    ? emoji
+                    : (code == 'CLXY'
+                        ? 'CX'
+                        : (code.length >= 2 ? code.substring(0, 2) : code)),
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: size * 0.34,
+                  // Emoji glyphs fill the circle; the code text stays small.
+                  fontSize: emoji.isNotEmpty ? size * 0.72 : size * 0.34,
                   fontWeight: FontWeight.bold,
                   letterSpacing: -0.5,
                 ),
@@ -77,6 +88,9 @@ class _FlagPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
+
+    // Emoji flags paint nothing: the emoji text is the flag.
+    if (_isEmojiFlag(code)) return;
 
     switch (code) {
       case '':
