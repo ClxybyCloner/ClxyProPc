@@ -124,7 +124,7 @@ Get-FileHash ClxyPro-1.5.31-Windows-x64.zip -Algorithm SHA256
 <div dir="ltr">
 
 ```text
-b39a7d2db88c4908d498e620675857ad900754edb8b3d792c592743255abae76  ClxyPro-1.5.31-Windows-x64.zip
+7d8b99c7e33300cb825069db1d7284b524774ce5ceb7522321b3bcc6d29f953d  ClxyPro-1.5.31-Windows-x64.zip
 ```
 
 </div>
