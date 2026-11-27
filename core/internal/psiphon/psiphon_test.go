@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"testing"
 )
@@ -46,8 +47,13 @@ func TestWriteConfigOverrides(t *testing.T) {
 	if st, err := os.Stat(filepath.Join(dir, "psiphon", "data")); err != nil || !st.IsDir() {
 		t.Errorf("data dir not created: %v", err)
 	}
-	if st, err := os.Stat(file); err != nil || st.Mode().Perm() != 0o600 {
-		t.Errorf("config file perms = %v, want 0600", st.Mode())
+	// Windows has no Unix permission bits: os.WriteFile's mode is
+	// ignored there (the file comes out 0666), so only check the
+	// 0600 on platforms where the mode means something.
+	if runtime.GOOS != "windows" {
+		if st, err := os.Stat(file); err != nil || st.Mode().Perm() != 0o600 {
+			t.Errorf("config file perms = %v, want 0600", st.Mode())
+		}
 	}
 }
 
