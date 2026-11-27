@@ -1,4 +1,5 @@
 ﻿import 'dart:ui';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../components/brand_header.dart';
 import '../components/circular_country_flag.dart';
@@ -116,30 +117,7 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 6.0),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _buildExitChip(
-                state,
-                code: '',
-                selected: region.isEmpty,
-              ),
-              const SizedBox(width: 6.0),
-              ...PsiphonExit.regions.entries.map((entry) {
-                final code = entry.key;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 6.0),
-                  child: _buildExitChip(
-                    state,
-                    code: code,
-                    selected: region == code,
-                  ),
-                );
-              }),
-            ],
-          ),
-        ),
+        _ExitCountryChips(state: state, region: region),
       ],
     );
   }
@@ -206,54 +184,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildExitChip(
-    AppState state, {
-    required String code,
-    required bool selected,
-  }) {
-    final isAuto = code.isEmpty;
-    return GestureDetector(
-      onTap: () {
-        Prefs.exitRegion = code;
-        state.refreshRouteInfo();
-      },
-      child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
-        decoration: BoxDecoration(
-          color: selected
-              ? ClxyColors.quantumPurple.withOpacity(0.28)
-              : ClxyColors.cardSurface,
-          borderRadius: BorderRadius.circular(999.0),
-          border: Border.all(
-            color: selected
-                ? ClxyColors.quantumPurple.withOpacity(0.65)
-                : ClxyColors.glassBorder,
-            width: 1.0,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (!isAuto) ...[
-              CircularCountryFlag(countryCode: code, size: 16.0),
-              const SizedBox(width: 5.0),
-            ],
-            Text(
-              isAuto ? PsiphonExit.autoLabel : code,
-              style: TextStyle(
-                fontSize: 12.0,
-                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-                color: selected
-                    ? ClxyColors.pinkAccent
-                    : ClxyColors.textMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildGuidePill(BuildContext context) {
     return GestureDetector(
@@ -943,6 +873,122 @@ class HomeScreen extends StatelessWidget {
                 color: ClxyColors.textMuted,
                 size: 20.0,
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+/// The exit country chips (Fastest + 31): a horizontal row that scrolls
+/// with the mouse wheel. A horizontal SingleChildScrollView ignores the
+/// vertical wheel on desktop by itself, so the wheel delta is turned into
+/// a horizontal offset here; the thin scrollbar thumb shows there is more
+/// to the side. Stateful only to own (and dispose) the ScrollController —
+/// HomeScreen itself stays stateless.
+class _ExitCountryChips extends StatefulWidget {
+  final AppState state;
+  final String region;
+
+  const _ExitCountryChips({required this.state, required this.region});
+
+  @override
+  State<_ExitCountryChips> createState() => _ExitCountryChipsState();
+}
+
+class _ExitCountryChipsState extends State<_ExitCountryChips> {
+  final _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onWheel(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent || !_controller.hasClients) return;
+    final delta = event.scrollDelta.dx != 0.0
+        ? event.scrollDelta.dx
+        : event.scrollDelta.dy;
+    if (delta == 0.0) return;
+    final target = (_controller.offset + delta)
+        .clamp(0.0, _controller.position.maxScrollExtent);
+    _controller.jumpTo(target);
+  }
+
+  Widget _buildChip({required String code, required bool selected}) {
+    final isAuto = code.isEmpty;
+    return GestureDetector(
+      onTap: () {
+        Prefs.exitRegion = code;
+        widget.state.refreshRouteInfo();
+      },
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
+        decoration: BoxDecoration(
+          color: selected
+              ? ClxyColors.quantumPurple.withOpacity(0.28)
+              : ClxyColors.cardSurface,
+          borderRadius: BorderRadius.circular(999.0),
+          border: Border.all(
+            color: selected
+                ? ClxyColors.quantumPurple.withOpacity(0.65)
+                : ClxyColors.glassBorder,
+            width: 1.0,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!isAuto) ...[
+              CircularCountryFlag(countryCode: code, size: 16.0),
+              const SizedBox(width: 5.0),
+            ],
+            Text(
+              isAuto ? PsiphonExit.autoLabel : code,
+              style: TextStyle(
+                fontSize: 12.0,
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                color: selected
+                    ? ClxyColors.pinkAccent
+                    : ClxyColors.textMuted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerSignal: _onWheel,
+      child: Scrollbar(
+        controller: _controller,
+        thumbVisibility: true,
+        thickness: 4.0,
+        radius: const Radius.circular(2.0),
+        child: SingleChildScrollView(
+          controller: _controller,
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _buildChip(code: '', selected: widget.region.isEmpty),
+              const SizedBox(width: 6.0),
+              ...PsiphonExit.regions.entries.map((entry) {
+                final code = entry.key;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6.0),
+                  child: _buildChip(
+                    code: code,
+                    selected: widget.region == code,
+                  ),
+                );
+              }),
             ],
           ),
         ),
