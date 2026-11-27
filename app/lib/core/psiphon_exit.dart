@@ -45,18 +45,6 @@ class PsiphonExit {
     return regions[code.toUpperCase()] ?? code;
   }
 
-  /// Flag emoji for a two-letter ISO code, via regional indicators.
-  /// '' when the code is not two letters. (Windows renders these with
-  /// the system emoji font; without it the two letters show instead —
-  /// the same information, never a blank.)
-  static String flag(String code) {
-    if (code.length != 2) return '';
-    final upper = code.toUpperCase();
-    final first = 0x1F1E6 + (upper.codeUnitAt(0) - 0x41);
-    final second = 0x1F1E6 + (upper.codeUnitAt(1) - 0x41);
-    return String.fromCharCode(first) + String.fromCharCode(second);
-  }
-
   static const String guideTitle = 'How the exit country works';
   static const String guideTitleFa = 'کشور خروجی چطور کار می‌کنه؟';
 

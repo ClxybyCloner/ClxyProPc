@@ -173,6 +173,10 @@ class AppState extends ChangeNotifier {
     final api = await coreProcess.startAndConnect();
     if (api != null) {
       addLog('System', 'Connected to local core daemon.');
+      // A new daemon process restarts its log ids at 1: re-read from
+      // the start, or the new process's first lines would be skipped.
+      _lastCoreLogId = 0;
+      _startCoreLogPolling();
       // Push the app's saved core/mode/location into the daemon so the
       // core matches what the UI shows after a restart.
       await _syncCoreSettings();
@@ -697,7 +701,31 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _applyQuantumPeer() async {
-    final peer = Prefs.server('aether');
+    var peer = Prefs.server('aether');
+    if (peer.isEmpty && servers.isNotEmpty) {
+      // No relay pinned (fresh install, or the user never picked one
+      // in the Servers screen): ping every relay in parallel and pin
+      // the fastest, like Android does before connect. Without a peer
+      // the core burns its whole 75s HTTP/2 scan, then the 75s HTTP/3
+      // one — a two-minute first connect on a network where the
+      // fastest relay answers in milliseconds.
+      final results = await Future.wait(
+        servers.map((s) async => (
+              key: s.key,
+              label: s.title,
+              ms: await pingQuantumRelay(s.key),
+            )),
+      );
+      final reachable = results.where((r) => r.ms >= 0).toList()
+        ..sort((a, b) => a.ms.compareTo(b.ms));
+      if (reachable.isNotEmpty) {
+        final best = reachable.first;
+        Prefs.setServer('aether', best.key, best.label);
+        peer = best.key;
+        addLog('VPN',
+            'Quantum relay auto-pinned: ${best.label} (${best.ms}ms)');
+      }
+    }
     if (peer.isEmpty) return;
     final file = File(
         '${Prefs.userDataDir.path}${Platform.pathSeparator}aether-peer.txt');
@@ -826,6 +854,57 @@ class AppState extends ChangeNotifier {
     logs.insert(0, entry);
     if (logs.length > 500) logs.removeLast();
     notifyListeners();
+  }
+
+  // --- Core daemon logs -------------------------------------------------
+  // The app's own addLog lines are only the headlines ("Starting…",
+  // "Quantum relay pinned: …"). The scan stages, the aether sidecar
+  // lines and the exit's own lines live in the core daemon, which
+  // serves them at GET /api/logs. Without this poll the Logs tab
+  // could never explain a slow connect — it showed two lines and
+  // stopped. Runs on its own timer (not the status poller, which
+  // pauses while connecting — exactly when the detail matters most).
+  int _lastCoreLogId = 0;
+  bool _fetchingCoreLogs = false;
+  Timer? _coreLogTimer;
+
+  void _startCoreLogPolling() {
+    _coreLogTimer?.cancel();
+    _coreLogTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      final api = coreProcess.api;
+      if (api == null || _fetchingCoreLogs) return;
+      _fetchingCoreLogs = true;
+      try {
+        final entries = await api.fetchLogs(after: _lastCoreLogId);
+        if (entries.isEmpty) return;
+        var maxId = _lastCoreLogId;
+        for (final e in entries) {
+          final id = e['id'] as int? ?? 0;
+          if (id > maxId) maxId = id;
+          final msg = e['message'] as String? ?? '';
+          if (msg.isEmpty) continue;
+          // Core INFO lines are system detail: show them under the
+          // SYSTEM filter (the tab's fixed filter list has no CORE).
+          final raw = (e['level'] as String? ?? 'INFO').toUpperCase();
+          final level = raw == 'INFO' ? 'System' : raw;
+          logs.insert(
+            0,
+            LogEntry(
+              timestamp:
+                  DateTime.tryParse(e['time'] as String? ?? '') ??
+                      DateTime.now(),
+              level: level,
+              message: msg,
+            ),
+          );
+        }
+        _lastCoreLogId = maxId;
+        if (logs.length > 500) logs.removeRange(500, logs.length);
+        notifyListeners();
+      } finally {
+        _fetchingCoreLogs = false;
+      }
+    });
   }
 
   Future<void> checkUpdates({bool force = false}) async {

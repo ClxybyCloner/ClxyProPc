@@ -1,10 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 // Flags drawn by hand on canvas (kept: proper flags beat emoji).
 const _handDrawn = {
   'US', 'DE', 'FR', 'GB', 'NL', 'CA', 'JP', 'IR', 'IE', 'CH', 'SE', 'FI', 'AR'
 };
 const _special = {'', 'REC', 'AUTO'};
+
+// Codes with a bundled SVG flag in assets/flags/ (34 shipped + 11
+// added for the exit list in v1.5.31). Windows has no flag emoji —
+// Segoe UI Emoji renders 🇷🇴 as the two letters "RO" — so the SVG is
+// the only way a flag shows here at all.
+const _svgFlags = {
+  'AR', 'AT', 'AU', 'BE', 'BG', 'BR', 'CA', 'CH', 'CL', 'CO', 'CZ', 'DE',
+  'DK', 'EE', 'ES', 'FI', 'FR', 'GB', 'GH', 'HR', 'HU', 'IE', 'IN', 'IT',
+  'JP', 'KR', 'LV', 'MX', 'MY', 'NL', 'NO', 'NZ', 'PE', 'PH', 'PL', 'PT',
+  'RO', 'RS', 'SE', 'SG', 'SK', 'TH', 'US', 'ZA',
+};
 
 /// Any other two-letter code gets a real flag emoji (Android rc8):
 /// regional indicators, no hashed badge, no ring (rc11).
@@ -33,7 +45,11 @@ class CircularCountryFlag extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final code = countryCode.trim().toUpperCase();
-    final emoji = _isEmojiFlag(code) ? _flagEmoji(code) : '';
+    // SVG first: a real flag image. Emoji only when there is no SVG
+    // (and on Windows that renders as the two letters — same
+    // information, never a blank).
+    final isSvg = _svgFlags.contains(code) && !_handDrawn.contains(code);
+    final emoji = !isSvg && _isEmojiFlag(code) ? _flagEmoji(code) : '';
     final showText = code == 'CLXY' || emoji.isNotEmpty;
 
     return Container(
@@ -53,10 +69,18 @@ class CircularCountryFlag extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            CustomPaint(
-              size: Size(size, size),
-              painter: _FlagPainter(code: code),
-            ),
+            if (isSvg)
+              SvgPicture.asset(
+                'assets/flags/${code.toLowerCase()}.svg',
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+              )
+            else
+              CustomPaint(
+                size: Size(size, size),
+                painter: _FlagPainter(code: code),
+              ),
             if (showText)
               Text(
                 emoji.isNotEmpty
@@ -89,8 +113,9 @@ class _FlagPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    // Emoji flags paint nothing: the emoji text is the flag.
+    // Emoji and SVG flags paint nothing: the emoji text / SVG is the flag.
     if (_isEmojiFlag(code)) return;
+    if (_svgFlags.contains(code) && !_handDrawn.contains(code)) return;
 
     switch (code) {
       case '':

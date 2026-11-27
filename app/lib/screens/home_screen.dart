@@ -80,9 +80,6 @@ class HomeScreen extends StatelessWidget {
   Widget _buildExitSection(BuildContext context, AppState state) {
     final enabled = Prefs.exitEnabled;
     final region = Prefs.exitRegion;
-    final regionLabel = region.isEmpty
-        ? PsiphonExit.autoLabel
-        : '${PsiphonExit.flag(region)} ${PsiphonExit.regionName(region)}';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -91,13 +88,27 @@ class HomeScreen extends StatelessWidget {
             _buildExitToggle(state, enabled),
             const SizedBox(width: 8.0),
             Expanded(
-              child: Text(
-                region.isEmpty ? regionLabel : '$region: $regionLabel',
-                style: const TextStyle(
-                  fontSize: 12.0,
-                  color: ClxyColors.textMuted,
-                ),
-                overflow: TextOverflow.ellipsis,
+              child: Row(
+                children: [
+                  // Real flag image, not emoji: Windows renders flag
+                  // emoji as the two letters ("RO RO" on the chips).
+                  if (region.isNotEmpty) ...[
+                    CircularCountryFlag(countryCode: region, size: 16.0),
+                    const SizedBox(width: 6.0),
+                  ],
+                  Expanded(
+                    child: Text(
+                      region.isEmpty
+                          ? PsiphonExit.autoLabel
+                          : '$region: ${PsiphonExit.regionName(region)}',
+                      style: const TextStyle(
+                        fontSize: 12.0,
+                        color: ClxyColors.textMuted,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: 8.0),
@@ -112,7 +123,6 @@ class HomeScreen extends StatelessWidget {
               _buildExitChip(
                 state,
                 code: '',
-                label: PsiphonExit.autoLabel,
                 selected: region.isEmpty,
               ),
               const SizedBox(width: 6.0),
@@ -123,7 +133,6 @@ class HomeScreen extends StatelessWidget {
                   child: _buildExitChip(
                     state,
                     code: code,
-                    label: '${PsiphonExit.flag(code)} $code',
                     selected: region == code,
                   ),
                 );
@@ -200,9 +209,9 @@ class HomeScreen extends StatelessWidget {
   Widget _buildExitChip(
     AppState state, {
     required String code,
-    required String label,
     required bool selected,
   }) {
+    final isAuto = code.isEmpty;
     return GestureDetector(
       onTap: () {
         Prefs.exitRegion = code;
@@ -223,15 +232,24 @@ class HomeScreen extends StatelessWidget {
             width: 1.0,
           ),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12.0,
-            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-            color: selected
-                ? ClxyColors.pinkAccent
-                : ClxyColors.textMuted,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!isAuto) ...[
+              CircularCountryFlag(countryCode: code, size: 16.0),
+              const SizedBox(width: 5.0),
+            ],
+            Text(
+              isAuto ? PsiphonExit.autoLabel : code,
+              style: TextStyle(
+                fontSize: 12.0,
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                color: selected
+                    ? ClxyColors.pinkAccent
+                    : ClxyColors.textMuted,
+              ),
+            ),
+          ],
         ),
       ),
     );

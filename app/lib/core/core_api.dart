@@ -415,14 +415,23 @@ class CoreApi {
     return false;
   }
 
-  Future<List<String>> fetchLogs() async {
-    final url = endpoint.baseUri.replace(path: '/api/logs');
+  /// Core daemon log entries newer than [after] (0 = all buffered).
+  /// The core serves {"entries": [{id, time, level, message}]} — the
+  /// old version expected a bare list and silently returned nothing,
+  /// so the Logs tab never showed a single core line.
+  Future<List<Map<String, dynamic>>> fetchLogs({int after = 0}) async {
+    final url = endpoint.baseUri.replace(
+      path: '/api/logs',
+      queryParameters: {'after': '$after'},
+    );
     try {
       final res = await _client.get(url, headers: _headers).timeout(const Duration(seconds: 4));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        if (data is List) {
-          return data.map((e) => e.toString()).toList();
+        if (data is Map && data['entries'] is List) {
+          return (data['entries'] as List)
+              .whereType<Map<String, dynamic>>()
+              .toList();
         }
       }
     } catch (_) {}
