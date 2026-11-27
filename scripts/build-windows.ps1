@@ -8,7 +8,7 @@
 #         clxy-vpn-core.exe
 #         clxy-vpn-tun.exe
 #         aether.exe        (Quantum engine, CluvexStudio/Aether v2.4.0)
-#         psiphon.exe       (Psiphon exit sidecar, v1.5.34)
+#         psiphon.exe       (Psiphon exit sidecar, v1.5.35)
 #         LICENSES\         (aether third-party notices)
 #       README.txt
 #
@@ -33,7 +33,7 @@ if (-not $AppVersion) {
     if ($match) {
         $AppVersion = $match.Matches[0].Groups[1].Value
     } else {
-        $AppVersion = "1.5.34"
+        $AppVersion = "1.5.35"
     }
 }
 
@@ -86,7 +86,7 @@ try {
 }
 
 # 3. Build the Psiphon exit wrapper (psiphon.exe) — the Quantum exit
-# sidecar (v1.5.34). Its module is separate (clxy/psiphon, GPLv3,
+# sidecar (v1.5.35). Its module is separate (clxy/psiphon, GPLv3,
 # adapted from BPB-VPN), so this builds from tools/psiphon, not from
 # core/. The core daemon starts it only when the exit is on; without
 # it, an exit connect fails with the exit's own error instead of

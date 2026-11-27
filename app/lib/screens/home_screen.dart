@@ -913,9 +913,22 @@ class _ExitCountryChipsState extends State<_ExitCountryChips> {
         ? event.scrollDelta.dx
         : event.scrollDelta.dy;
     if (delta == 0.0) return;
-    final target = (_controller.offset + delta)
-        .clamp(0.0, _controller.position.maxScrollExtent);
-    _controller.jumpTo(target);
+    final position = _controller.position;
+    final target = (position.pixels + delta)
+        .clamp(position.minScrollExtent, position.maxScrollExtent);
+    if (target == position.pixels) {
+      // Chips are already at the edge in this direction: do not claim the
+      // event, so the page underneath may scroll instead.
+      return;
+    }
+    // Claim the wheel event through the pointer-signal resolver, the same
+    // mechanism Scrollable itself uses: the deepest registrant wins, so the
+    // page's vertical scrollable does not move while the chips can still
+    // scroll. Handling the event directly (Listener alone) lets BOTH scroll.
+    GestureBinding.instance.pointerSignalResolver.register(
+      event,
+      (_) => _controller.jumpTo(target),
+    );
   }
 
   Widget _buildChip({required String code, required bool selected}) {
@@ -975,6 +988,9 @@ class _ExitCountryChipsState extends State<_ExitCountryChips> {
         child: SingleChildScrollView(
           controller: _controller,
           scrollDirection: Axis.horizontal,
+          // Bottom padding so the Scrollbar thumb sits in the empty strip
+          // BELOW the chips instead of overlapping them.
+          padding: const EdgeInsets.only(bottom: 10.0),
           child: Row(
             children: [
               _buildChip(code: '', selected: widget.region.isEmpty),
