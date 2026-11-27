@@ -7,7 +7,13 @@ import '../theme/clxy_colors.dart';
 class LogsScreen extends StatefulWidget {
   final AppState state;
 
-  const LogsScreen({super.key, required this.state});
+  /// Tab usage (main.dart) passes this: the tab is the root route,
+  /// so a plain Navigator.pop() would pop the whole app and leave a
+  /// black window. Pushed usage (Profile) leaves it null and pops
+  /// the pushed page instead.
+  final VoidCallback? onClose;
+
+  const LogsScreen({super.key, required this.state, this.onClose});
 
   @override
   State<LogsScreen> createState() => _LogsScreenState();
@@ -73,7 +79,16 @@ class _LogsScreenState extends State<LogsScreen> {
         title: const Text('Live Logs', style: TextStyle(color: ClxyColors.textPrimary, fontSize: 16)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            // Tab: go back to Home (never pop the root route — that
+            // empties the Navigator and the window goes black).
+            // Pushed page: pop it, but only when there is a route to pop.
+            if (widget.onClose != null) {
+              widget.onClose!();
+            } else if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            }
+          },
         ),
         actions: [
           IconButton(

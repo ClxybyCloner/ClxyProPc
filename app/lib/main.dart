@@ -244,7 +244,12 @@ class _MainShellState extends State<MainShell> {
                   setState(() => _activeTab = MainTab.home);
                 },
               ),
-              LogsScreen(state: _appState),
+              LogsScreen(
+                state: _appState,
+                onClose: () {
+                  setState(() => _activeTab = MainTab.home);
+                },
+              ),
               ProfileScreen(
                 state: _appState,
                 onOpenSignIn: _openSignIn,
