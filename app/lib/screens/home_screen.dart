@@ -330,11 +330,15 @@ class HomeScreen extends StatelessWidget {
         final btnDiameter = compact ? 116.0 : 130.0;
 
         // Mute the repeating animations (power button, world map, route box)
-        // while the window is hidden in the tray: their tickers otherwise
-        // keep scheduling 60fps frames for a window nobody sees, which is
-        // what kept the app at ~30% CPU after the window was closed.
+        // while the window is hidden in the tray (v1.5.36) and while the
+        // app is not connected (v1.5.37): their tickers otherwise keep
+        // scheduling 60fps frames for a screen nobody uses, which is what
+        // kept the app at ~30% CPU with the window open but idle. The
+        // animations still run while connecting and while connected, where
+        // they show live state.
         return TickerMode(
-          enabled: !state.windowHidden,
+          enabled:
+              !state.windowHidden && (state.isConnected || state.isConnecting),
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 20.0),
             child: Column(

@@ -34,6 +34,11 @@ class AppState extends ChangeNotifier {
   /// status poll, so it needs no separate handling.
   bool windowHidden = false;
 
+  /// True while the core was parked on purpose (idle in the tray, v1.5.37).
+  /// Stops the _startCore retry loop from waking it behind our back; cleared
+  /// when the window shows again or a connect needs the core.
+  bool _corePaused = false;
+
   void setWindowHidden(bool hidden) {
     if (windowHidden == hidden) return;
     windowHidden = hidden;
@@ -41,10 +46,32 @@ class AppState extends ChangeNotifier {
     if (hidden) {
       _coreLogTimer?.cancel();
       _coreLogTimer = null;
+      _parkCoreIfIdle();
     } else {
       _startCoreLogPolling();
+      // The core parks itself while the app sits idle in the tray
+      // (v1.5.37): wake it now so the Servers list and status are live.
+      if (_corePaused) {
+        _corePaused = false;
+        _startCore();
+      }
     }
     notifyListeners();
+  }
+
+  /// Parks the core while the app sits idle in the tray: with no tunnel up
+  /// it does nothing but hold RAM, so it stops and restarts on show or on
+  /// connect. Only when hidden — with the window open the Servers tab
+  /// needs the core's location list. Never parks a live tunnel: only
+  /// idle/failed states park (a connect/disconnect in flight keeps it).
+  void _parkCoreIfIdle() {
+    if (!windowHidden) return;
+    if (status != VpnStatus.idle && status != VpnStatus.failed) return;
+    _corePaused = true;
+    if (coreProcess.isRunning) {
+      coreProcess.stop();
+      addLog('System', 'Core parked (idle in tray).');
+    }
   }
 
   String coreId = 'firefox'; // 'firefox' (CLXY Hyper) or 'aether' (CLXY Quantum)
@@ -190,6 +217,10 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _startCore() async {
+    // Parked on purpose (idle in the tray, v1.5.37): stay off until the
+    // window shows or a connect wakes us — including a retry timer
+    // scheduled before the park.
+    if (_corePaused) return;
     addLog('System', 'Starting ClxyPro Core sidecar…');
     final api = await coreProcess.startAndConnect();
     if (api != null) {
@@ -206,8 +237,9 @@ class AppState extends ChangeNotifier {
     } else {
       addLog('Warn',
           'Core sidecar not available: ${coreProcess.lastError ?? 'unknown reason'}. Retrying…');
-      // Retry in 3 seconds
-      Timer(const Duration(seconds: 3), _startCore);
+      // Retry in 3 seconds — unless the core was parked on purpose
+      // meanwhile (idle in the tray): a parked core stays off.
+      if (!_corePaused) Timer(const Duration(seconds: 3), _startCore);
     }
   }
 
@@ -451,6 +483,14 @@ class AppState extends ChangeNotifier {
 
     addLog('VPN', 'Initiating connection (Core: $coreId, Mode: $mode)…');
 
+    // The core parks itself while the app sits idle in the tray (v1.5.37):
+    // wake it before connecting — a tray quick-connect starts from a
+    // parked core. _startCore re-syncs settings and reloads servers.
+    if (coreProcess.api == null) {
+      _corePaused = false;
+      await _startCore();
+    }
+
     final api = coreProcess.api;
     if (api == null) {
       status = VpnStatus.failed;
@@ -672,6 +712,9 @@ class AppState extends ChangeNotifier {
     upRate = '0,0';
     _updateRouteInfo();
     addLog('VPN', 'Disconnected.');
+    // A disconnect from the tray leaves the app hidden and idle: park
+    // the core too, like closing the window does (v1.5.37).
+    _parkCoreIfIdle();
     notifyListeners();
   }
 
