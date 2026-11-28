@@ -329,12 +329,18 @@ class HomeScreen extends StatelessWidget {
         final mapHeight = compact ? 190.0 : 230.0;
         final btnDiameter = compact ? 116.0 : 130.0;
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              SizedBox(height: topPad),
+        // Mute the repeating animations (power button, world map, route box)
+        // while the window is hidden in the tray: their tickers otherwise
+        // keep scheduling 60fps frames for a window nobody sees, which is
+        // what kept the app at ~30% CPU after the window was closed.
+        return TickerMode(
+          enabled: !state.windowHidden,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SizedBox(height: topPad),
 
               // Brand header
               BrandHeader(
@@ -476,7 +482,8 @@ class HomeScreen extends StatelessWidget {
               SizedBox(height: compact ? 8.0 : 16.0),
             ],
           ),
-        );
+        ),
+      );
       },
     );
   }

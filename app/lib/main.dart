@@ -107,15 +107,25 @@ class _MainShellState extends State<MainShell> {
         onCloseRequested: () {
           if (Prefs.closeToTray) {
             _bridge?.hide();
+            // The window is gone but the app lives on in the tray: pause
+            // animations and slow the pollers (AppState.setWindowHidden).
+            AppState.instance.setWindowHidden(true);
           } else {
             _bridge?.quit();
           }
         },
-        onTrayClicked: () => _bridge?.show(),
-        onShown: () => _bridge?.show(),
+        onTrayClicked: () {
+          AppState.instance.setWindowHidden(false);
+          _bridge?.show();
+        },
+        onShown: () {
+          AppState.instance.setWindowHidden(false);
+          _bridge?.show();
+        },
         onTrayMenu: (id) {
           switch (id) {
             case 1: // Show
+              AppState.instance.setWindowHidden(false);
               _bridge?.show();
               break;
             case 2: // Toggle Connect
@@ -173,10 +183,9 @@ class _MainShellState extends State<MainShell> {
     if (_bridge == null) return;
     final isConn = _appState.isConnected;
     final tooltip = isConn ? 'ClxyPro - Protected' : 'ClxyPro - Disconnected';
-    final iconName = isConn ? 'connected' : 'disconnected';
 
     _bridge!.setTray(
-      icon: iconName,
+      icon: _trayIconPath(isConn),
       tooltip: tooltip,
       items: [
         const TrayItem(1, 'Open ClxyPro'),
@@ -186,6 +195,23 @@ class _MainShellState extends State<MainShell> {
         const TrayItem(3, 'Quit'),
       ],
     );
+  }
+
+  /// Absolute path of the tray .ico for the current state. The icons ship in
+  /// the bundle at data/flutter_assets/assets/tray/ (on.ico = connected,
+  /// off.ico = disconnected). The old code passed the bare names
+  /// 'connected'/'disconnected', which match no file — LoadImageW failed,
+  /// no icon was ever added to the tray, and the app was invisible there
+  /// (no way to see it or Quit it) while still running. If the .ico is
+  /// ever missing, fall back to the exe itself: LoadImageW reads the
+  /// icon embedded in it.
+  String _trayIconPath(bool connected) {
+    final exeDir = File(Platform.resolvedExecutable).parent.path;
+    final sep = Platform.pathSeparator;
+    final icon = File('$exeDir${sep}data${sep}flutter_assets${sep}assets'
+        '${sep}tray${sep}${connected ? 'on' : 'off'}.ico');
+    if (icon.existsSync()) return icon.path;
+    return Platform.resolvedExecutable;
   }
 
   void _onStateChanged() {

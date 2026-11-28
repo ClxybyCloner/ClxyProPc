@@ -26,6 +26,27 @@ class AppState extends ChangeNotifier {
   String statusLabel = 'Ready to Protect';
   String? errorMessage;
 
+  /// True while the window is hidden in the tray (close-to-tray). The home
+  /// animations mute via TickerMode and the pollers slow down; the status
+  /// poll keeps running at 10s so the tray icon still follows the
+  /// connection, and core-log polling stops (no logs are visible while
+  /// hidden). The elapsed timer is computed from _connectedAt inside the
+  /// status poll, so it needs no separate handling.
+  bool windowHidden = false;
+
+  void setWindowHidden(bool hidden) {
+    if (windowHidden == hidden) return;
+    windowHidden = hidden;
+    _startPolling(); // rebuilds the status timer at the right interval
+    if (hidden) {
+      _coreLogTimer?.cancel();
+      _coreLogTimer = null;
+    } else {
+      _startCoreLogPolling();
+    }
+    notifyListeners();
+  }
+
   String coreId = 'firefox'; // 'firefox' (CLXY Hyper) or 'aether' (CLXY Quantum)
   String mode = 'VPN'; // 'VPN' or 'PROXY'
 
@@ -192,7 +213,8 @@ class AppState extends ChangeNotifier {
 
   void _startPolling() {
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+    _pollTimer = Timer.periodic(
+        Duration(seconds: windowHidden ? 10 : 1), (timer) async {
       final api = coreProcess.api;
       if (api == null) return;
 
